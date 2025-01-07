@@ -5,17 +5,18 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Send, Loader2 } from 'lucide-react'
 import { Message, Chat, ChatType } from '@/types/chat'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { getMessagesByChat, sendMessage } from '@/services/messageService'
-import { getChatById, ChatServiceError } from '@/services/chatService'
+import { getMessagesByChat, sendMessage, updateMessage } from '@/services/messageService'
+import { getChatById, createChat, ChatServiceError } from '@/services/chatService'
 import { useAuth } from '@/components/providers/auth-provider'
 
 interface ThreadAreaProps {
   threadId: string | null;
   parentMessage: Message;
   onClose: () => void;
+  onParentUpdate?: (message: Message) => void;
 }
 
-export default function ThreadArea({ threadId, parentMessage, onClose }: ThreadAreaProps) {
+export default function ThreadArea({ threadId, parentMessage, onClose, onParentUpdate }: ThreadAreaProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -74,16 +75,35 @@ export default function ThreadArea({ threadId, parentMessage, onClose }: ThreadA
         throw new Error('No authentication token available')
       }
 
-      // For new threads, we need to create a thread chat first
+      // For new threads, create a thread chat first
       let actualThreadId = threadId
       if (threadId === '') {
-        // TODO: Create a new thread chat here
-        // This would require a new API endpoint to create a thread
-        // actualThreadId = await createThreadChat(token)
+        // Create a new thread chat
+        const threadChat = await createChat({
+          id: '', // Will be assigned by the server
+          name: 'Thread',
+          description: '',
+          type: ChatType.THREAD,
+          lastMessageAt: new Date()
+        }, token)
+        
+        actualThreadId = threadChat.id
+
+        // Update the parent message with the new threadId
+        const updatedParent = await updateMessage(parentMessage.id, {
+          ...parentMessage,
+          threadId: actualThreadId
+        }, token)
+
+        // Notify parent component about the update
+        if (onParentUpdate) {
+          onParentUpdate(updatedParent)
+        }
       }
 
       if (!actualThreadId) return
 
+      // Send the new message
       const message = await sendMessage(actualThreadId, newMessage.trim(), token)
       setMessages(prev => [...prev, message])
       setNewMessage('')

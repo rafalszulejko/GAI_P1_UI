@@ -61,3 +61,20 @@ export const sendMessage = async (chatId: string, content: string, token: string
   return response.json();
 };
 
+export async function updateMessage(messageId: string, message: Partial<Message>, token: string): Promise<Message> {
+  const response = await fetch(`/api/messages/${messageId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(message)
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to update message')
+  }
+
+  return response.json()
+}
+

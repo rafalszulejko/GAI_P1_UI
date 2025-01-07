@@ -103,6 +103,14 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
     setThreadParentMessage(null)
   }
 
+  const handleParentMessageUpdate = (updatedMessage: Message) => {
+    setMessages(prev => prev.map(msg => 
+      msg.id === updatedMessage.id ? updatedMessage : msg
+    ))
+    setThreadParentMessage(updatedMessage)
+    setActiveThreadId(updatedMessage.threadId)
+  }
+
   if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -198,6 +206,7 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
             threadId={activeThreadId}
             parentMessage={threadParentMessage}
             onClose={handleCloseThread}
+            onParentUpdate={handleParentMessageUpdate}
           />
         </div>
       )}
