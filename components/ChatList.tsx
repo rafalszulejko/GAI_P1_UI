@@ -8,8 +8,6 @@ import { createChat, ChatServiceError, getAllChats } from '@/services/chatServic
 import { getCurrentUser } from '@/services/userService'
 import { addChatMember } from '@/services/chatMemberService'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
-import { useAuth0 } from '@auth0/auth0-react'
-import { clearAuthToken } from '@/utils/auth'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -31,7 +29,6 @@ interface ChatListProps {
 
 export default function ChatList({ onSelectChat, selectedChatId, chats, isLoading, onChatCreated }: ChatListProps) {
   const [error, setError] = useState<string | null>(null)
-  const [userName, setUserName] = useState<string>('')
   const [userId, setUserId] = useState<string>('')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isBrowseModalOpen, setIsBrowseModalOpen] = useState(false)
@@ -41,17 +38,16 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
   const [selectedChannelId, setSelectedChannelId] = useState<string>('')
   const [isLoadingChannels, setIsLoadingChannels] = useState(false)
   const { getToken, isAuthenticated } = useAuth()
-  const { logout } = useAuth0()
 
   useEffect(() => {
     const fetchUser = async () => {
       if (isAuthenticated) {
         try {
           const user = await getCurrentUser()
-          setUserName(user.username)
           setUserId(user.id)
         } catch (error) {
-          console.error('Failed to fetch user:', error)
+          console.error('Error fetching user:', error)
+          setError('Failed to fetch user data')
         }
       }
     }
@@ -147,24 +143,8 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
     }
   }
 
-  const handleLogout = () => {
-    // Clear local auth token
-    clearAuthToken();
-    // Logout from Auth0 and redirect to home page
-    logout({ 
-      logoutParams: {
-        returnTo: window.location.origin 
-      }
-    });
-  };
-
   return (
     <div className="w-64 border-r bg-muted">
-      {userName && (
-        <div className="p-4 border-b">
-          <p className="text-sm font-medium">Welcome, {userName}</p>
-        </div>
-      )}
       {isLoading ? (
         <div className="flex items-center justify-center p-4">
           <Loader2 className="h-6 w-6 animate-spin" />
@@ -268,13 +248,6 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
           </div>
         </ScrollArea>
       )}
-      <Button 
-        variant="outline" 
-        onClick={handleLogout}
-        className="w-full mt-auto mb-4"
-      >
-        Logout
-      </Button>
 
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent>
