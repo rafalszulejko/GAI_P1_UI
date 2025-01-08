@@ -10,6 +10,20 @@ export class ChatServiceError extends Error {
   }
 }
 
+export async function getAllChats(token: string): Promise<Chat[]> {
+  const response = await fetch(CHATS_ENDPOINT, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new ChatServiceError('Failed to fetch all chats');
+  }
+
+  return response.json();
+}
+
 export async function getChatById(chatId: string, token: string): Promise<Chat> {
   const response = await fetch(`${CHATS_ENDPOINT}/${chatId}`, {
     headers: {

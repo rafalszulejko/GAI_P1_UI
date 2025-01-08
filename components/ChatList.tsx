@@ -2,13 +2,24 @@ import { useState, useEffect } from 'react'
 import { Chat, ChatType } from '@/types/chat'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Plus, Loader2, Hash, User } from 'lucide-react'
+import { Plus, Loader2, Hash, User, Search } from 'lucide-react'
 import { useAuth } from '@/components/providers/auth-provider'
-import { createChat, ChatServiceError } from '@/services/chatService'
+import { createChat, ChatServiceError, getAllChats } from '@/services/chatService'
 import { getCurrentUser } from '@/services/userService'
+import { addChatMember } from '@/services/chatMemberService'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { useAuth0 } from '@auth0/auth0-react'
 import { clearAuthToken } from '@/utils/auth'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface ChatListProps {
   onSelectChat: (chatId: string) => void
@@ -21,6 +32,14 @@ interface ChatListProps {
 export default function ChatList({ onSelectChat, selectedChatId, chats, isLoading, onChatCreated }: ChatListProps) {
   const [error, setError] = useState<string | null>(null)
   const [userName, setUserName] = useState<string>('')
+  const [userId, setUserId] = useState<string>('')
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isBrowseModalOpen, setIsBrowseModalOpen] = useState(false)
+  const [newChannelName, setNewChannelName] = useState('')
+  const [newChannelDescription, setNewChannelDescription] = useState('')
+  const [availableChannels, setAvailableChannels] = useState<Chat[]>([])
+  const [selectedChannelId, setSelectedChannelId] = useState<string>('')
+  const [isLoadingChannels, setIsLoadingChannels] = useState(false)
   const { getToken, isAuthenticated } = useAuth()
   const { logout } = useAuth0()
 
@@ -30,6 +49,7 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
         try {
           const user = await getCurrentUser()
           setUserName(user.username)
+          setUserId(user.id)
         } catch (error) {
           console.error('Failed to fetch user:', error)
         }
@@ -37,6 +57,60 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
     }
     fetchUser()
   }, [isAuthenticated])
+
+  const handleBrowseChannels = async () => {
+    if (!isAuthenticated) return
+    
+    try {
+      setIsLoadingChannels(true)
+      const token = await getToken()
+      if (!token) {
+        throw new ChatServiceError('No authentication token available')
+      }
+      
+      const allChats = await getAllChats(token)
+      // Filter to only show channels that the user is not a member of
+      const userChatIds = new Set(chats.map(chat => chat.id))
+      const availableChats = allChats.filter(
+        chat => chat.type === ChatType.CHANNEL && !userChatIds.has(chat.id)
+      )
+      
+      setAvailableChannels(availableChats)
+      setIsBrowseModalOpen(true)
+    } catch (error) {
+      const message = error instanceof ChatServiceError 
+        ? error.message 
+        : 'Failed to fetch available channels'
+      setError(message)
+    } finally {
+      setIsLoadingChannels(false)
+    }
+  }
+
+  const handleJoinChannel = async () => {
+    if (!isAuthenticated || !selectedChannelId || !userId) return
+    
+    try {
+      const token = await getToken()
+      if (!token) {
+        throw new ChatServiceError('No authentication token available')
+      }
+      
+      await addChatMember(selectedChannelId, userId, token)
+      const selectedChannel = availableChannels.find(c => c.id === selectedChannelId)
+      if (selectedChannel && onChatCreated) {
+        onChatCreated(selectedChannel)
+      }
+      onSelectChat(selectedChannelId)
+      setSelectedChannelId('')
+      setIsBrowseModalOpen(false)
+    } catch (error) {
+      const message = error instanceof ChatServiceError 
+        ? error.message 
+        : 'Failed to join channel'
+      setError(message)
+    }
+  }
 
   // Filter chats into channels and direct messages
   const channels = chats.filter(chat => chat.type === ChatType.CHANNEL)
@@ -51,8 +125,8 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
         throw new ChatServiceError('No authentication token available')
       }
       const newChat: Partial<Chat> = {
-        name: 'New Chat',
-        description: 'New chat description',
+        name: newChannelName || 'New Chat',
+        description: newChannelDescription || 'New chat description',
         type: type,
         lastMessageAt: new Date()
       }
@@ -61,6 +135,10 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
       if (onChatCreated) {
         onChatCreated(chat)
       }
+      // Reset form and close modal
+      setNewChannelName('')
+      setNewChannelDescription('')
+      setIsCreateModalOpen(false)
     } catch (error) {
       const message = error instanceof ChatServiceError 
         ? error.message 
@@ -122,15 +200,31 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
                         No channels yet
                       </div>
                     )}
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-muted-foreground"
-                      onClick={() => handleCreateChat(ChatType.CHANNEL)}
-                      disabled={isLoading}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      New Channel
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-muted-foreground"
+                          disabled={isLoading}
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Channel
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-48">
+                        <DropdownMenuItem 
+                          onClick={handleBrowseChannels}
+                          disabled={isLoadingChannels}
+                        >
+                          <Search className="mr-2 h-4 w-4" />
+                          Browse Channels
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setIsCreateModalOpen(true)}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Create New Channel
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -181,6 +275,107 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
       >
         Logout
       </Button>
+
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Channel</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Channel Name</Label>
+              <Input
+                id="name"
+                placeholder="e.g. project-discussion"
+                value={newChannelName}
+                onChange={(e) => setNewChannelName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Channel Description</Label>
+              <Textarea
+                id="description"
+                placeholder="What's this channel about?"
+                value={newChannelDescription}
+                onChange={(e) => setNewChannelDescription(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleCreateChat(ChatType.CHANNEL)}
+              disabled={!newChannelName.trim()}
+            >
+              Create Channel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isBrowseModalOpen} onOpenChange={setIsBrowseModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Browse Channels</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {isLoadingChannels ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : availableChannels.length === 0 ? (
+              <div className="text-center text-sm text-muted-foreground py-8">
+                No available channels to join
+              </div>
+            ) : (
+              <ScrollArea className="h-[300px] pr-4">
+                <div className="space-y-1">
+                  {availableChannels.map((chat) => (
+                    <Button
+                      key={chat.id}
+                      variant={selectedChannelId === chat.id ? "secondary" : "ghost"}
+                      className="w-full justify-start"
+                      onClick={() => setSelectedChannelId(chat.id)}
+                    >
+                      <Hash className="mr-2 h-4 w-4" />
+                      <div className="flex flex-col items-start">
+                        <span>{chat.name}</span>
+                        {chat.description && (
+                          <span className="text-xs text-muted-foreground">
+                            {chat.description}
+                          </span>
+                        )}
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelectedChannelId('')
+                setIsBrowseModalOpen(false)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleJoinChannel}
+              disabled={!selectedChannelId}
+            >
+              Join Channel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 
