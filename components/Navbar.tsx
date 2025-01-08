@@ -5,6 +5,14 @@ import { Menu, Settings, User, MessageSquare, Bell } from 'lucide-react'
 import { SettingsModal } from '@/components/SettingsModal'
 import { NotificationsModal } from '@/components/NotificationsModal'
 import { useSidebar } from '@/components/ui/sidebar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { clearAuthToken } from '@/utils/auth'
+import { useAuth0 } from '@auth0/auth0-react'
 
 interface NavbarProps {
   onToggleSidebar?: () => void
@@ -17,6 +25,17 @@ export default function Navbar({ mode, onSwitchMode, currentChannel }: NavbarPro
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const { toggleSidebar } = useSidebar()
+  const { logout } = useAuth0()
+
+  const handleLogout = () => {
+    clearAuthToken();
+    logout({ 
+      logoutParams: {
+        returnTo: window.location.origin,
+        client_id: process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID
+      }
+    });
+  };
 
   return (
     <>
@@ -43,9 +62,21 @@ export default function Navbar({ mode, onSwitchMode, currentChannel }: NavbarPro
           <Button variant="ghost" size="icon" onClick={() => setIsSettingsOpen(true)}>
             <Settings className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={onSwitchMode}>
-            {mode === 'chat' ? <User className="h-5 w-5" /> : <MessageSquare className="h-5 w-5" />}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <User className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onSwitchMode}>
+                User Settings
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </nav>
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />

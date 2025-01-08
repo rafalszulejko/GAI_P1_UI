@@ -3,7 +3,6 @@
 import { useEffect } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { useRouter } from 'next/navigation'
-import { getUserChats } from '@/services/chatService'
 
 export default function Page() {
   const { isAuthenticated, isLoading, loginWithRedirect } = useAuth0()

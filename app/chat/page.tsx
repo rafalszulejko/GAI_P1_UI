@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getUserChats } from '@/services/chatService';
-import { Chat } from '@/types/chat';
+import { getUserChats } from '@/services/chatMemberService';
+import { getChatById } from '@/services/chatService';
+import { Chat, ChatMember } from '@/types/chat';
 import ChatList from '@/components/ChatList';
 import ChatArea from '@/components/ChatArea';
 import { RequireAuth } from '@/components/auth/RequireAuth';
@@ -10,6 +11,7 @@ import { useAuth } from '@/components/providers/auth-provider';
 import { useSidebar } from '@/components/ui/sidebar';
 
 export default function ChatPage() {
+  const [chatMembers, setChatMembers] = useState<ChatMember[]>([]);
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(true);
@@ -27,12 +29,18 @@ export default function ChatPage() {
         const token = await getToken();
         if (!token) return;
         
-        const userChats = await getUserChats(token);
+        const members = await getUserChats(token);
         if (mounted) {
-          setChats(userChats);
+          setChatMembers(members);
+          
+          // Fetch all chat details in parallel
+          const chatPromises = members.map(member => getChatById(member.chatId, token));
+          const chatDetails = await Promise.all(chatPromises);
+          
+          setChats(chatDetails);
           // Only select first chat if we have chats and no selection
-          if (userChats.length > 0 && !selectedChatId) {
-            setSelectedChatId(userChats[0].id);
+          if (chatDetails.length > 0 && !selectedChatId) {
+            setSelectedChatId(chatDetails[0].id);
           }
         }
       } catch (error) {
@@ -55,7 +63,7 @@ export default function ChatPage() {
     setSelectedChatId(chatId);
   };
 
-  const handleAddChat = (chat: Chat) => {
+  const handleAddChat = async (chat: Chat) => {
     setChats(prevChats => [...prevChats, chat]);
     setSelectedChatId(chat.id);
   };
@@ -77,10 +85,7 @@ export default function ChatPage() {
             selectedChatId={selectedChatId}
             onSelectChat={handleSelectChat}
             isLoading={isLoading}
-            onChatCreated={(chat) => {
-              setChats(prevChats => [...prevChats, chat])
-              setSelectedChatId(chat.id)
-            }}
+            onChatCreated={handleAddChat}
           />
         )}
         <div className="flex-1">

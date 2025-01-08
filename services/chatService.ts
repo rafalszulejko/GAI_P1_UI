@@ -39,18 +39,4 @@ export async function createChat(chat: Chat, token: string): Promise<Chat> {
   }
 
   return response.json();
-}
-
-export async function getUserChats(token: string): Promise<Chat[]> {
-  const response = await fetch(CHATS_ENDPOINT, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    throw new ChatServiceError('Failed to fetch user chats');
-  }
-
-  return response.json();
 } 

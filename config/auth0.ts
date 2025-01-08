@@ -3,6 +3,7 @@ export const auth0Config = {
   clientId: process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID || '',
   authorizationParams: {
     audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || '',
-    scope: 'openid profile email',
+    scope: 'openid profile email offline_access',
+    response_type: 'code',
   }
 }; 

@@ -23,8 +23,6 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-
   if (typeof window === 'undefined') {
     return <>{children}</>;
   }
@@ -36,18 +34,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       domain={auth0Config.domain}
       clientId={auth0Config.clientId}
       authorizationParams={{
-        redirect_uri: `${origin}/chat`,
+        redirect_uri: `${origin}/auth/callback`,
         audience: auth0Config.authorizationParams.audience,
-        scope: auth0Config.authorizationParams.scope
-      }}
-      onRedirectCallback={(appState) => {
-        const targetPath = appState?.returnTo || '/chat';
-        if (window.location.pathname !== targetPath) {
-          router.push(targetPath);
-        }
+        scope: auth0Config.authorizationParams.scope,
+        response_type: auth0Config.authorizationParams.response_type
       }}
       cacheLocation="localstorage"
       useRefreshTokens={true}
+      useFormData={false}
     >
       <AuthContextProvider>{children}</AuthContextProvider>
     </Auth0Provider>
@@ -59,7 +53,15 @@ function AuthContextProvider({ children }: { children: React.ReactNode }) {
 
   const getToken = async () => {
     try {
-      return await getAccessTokenSilently();
+      if (!isAuthenticated) {
+        return undefined;
+      }
+      return await getAccessTokenSilently({
+        authorizationParams: {
+          audience: auth0Config.authorizationParams.audience,
+          scope: auth0Config.authorizationParams.scope,
+        },
+      });
     } catch (error) {
       console.error('Failed to get token:', error);
       return undefined;

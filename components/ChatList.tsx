@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Chat, ChatType } from '@/types/chat'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Plus, Loader2, Hash, User } from 'lucide-react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { createChat, ChatServiceError } from '@/services/chatService'
+import { getCurrentUser } from '@/services/userService'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
+import { useAuth0 } from '@auth0/auth0-react'
+import { clearAuthToken } from '@/utils/auth'
 
 interface ChatListProps {
   onSelectChat: (chatId: string) => void
@@ -17,7 +20,23 @@ interface ChatListProps {
 
 export default function ChatList({ onSelectChat, selectedChatId, chats, isLoading, onChatCreated }: ChatListProps) {
   const [error, setError] = useState<string | null>(null)
+  const [userName, setUserName] = useState<string>('')
   const { getToken, isAuthenticated } = useAuth()
+  const { logout } = useAuth0()
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (isAuthenticated) {
+        try {
+          const user = await getCurrentUser()
+          setUserName(user.username)
+        } catch (error) {
+          console.error('Failed to fetch user:', error)
+        }
+      }
+    }
+    fetchUser()
+  }, [isAuthenticated])
 
   // Filter chats into channels and direct messages
   const channels = chats.filter(chat => chat.type === ChatType.CHANNEL)
@@ -50,8 +69,24 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
     }
   }
 
+  const handleLogout = () => {
+    // Clear local auth token
+    clearAuthToken();
+    // Logout from Auth0 and redirect to home page
+    logout({ 
+      logoutParams: {
+        returnTo: window.location.origin 
+      }
+    });
+  };
+
   return (
     <div className="w-64 border-r bg-muted">
+      {userName && (
+        <div className="p-4 border-b">
+          <p className="text-sm font-medium">Welcome, {userName}</p>
+        </div>
+      )}
       {isLoading ? (
         <div className="flex items-center justify-center p-4">
           <Loader2 className="h-6 w-6 animate-spin" />
@@ -59,10 +94,6 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
       ) : error ? (
         <div className="p-4 text-sm text-red-500">
           {error}
-        </div>
-      ) : chats.length === 0 ? (
-        <div className="p-4 text-sm text-gray-500">
-          No chats yet. Create your first chat!
         </div>
       ) : (
         <ScrollArea className="h-[calc(100vh-5rem)]">
@@ -74,17 +105,23 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-1">
-                    {channels.map((chat) => (
-                      <Button
-                        key={chat.id}
-                        variant={selectedChatId === chat.id ? "secondary" : "ghost"}
-                        className="w-full justify-start"
-                        onClick={() => onSelectChat(chat.id)}
-                      >
-                        <Hash className="mr-2 h-4 w-4" />
-                        {chat.name}
-                      </Button>
-                    ))}
+                    {channels.length > 0 ? (
+                      channels.map((chat) => (
+                        <Button
+                          key={chat.id}
+                          variant={selectedChatId === chat.id ? "secondary" : "ghost"}
+                          className="w-full justify-start"
+                          onClick={() => onSelectChat(chat.id)}
+                        >
+                          <Hash className="mr-2 h-4 w-4" />
+                          {chat.name}
+                        </Button>
+                      ))
+                    ) : (
+                      <div className="px-2 py-1 text-sm text-muted-foreground">
+                        No channels yet
+                      </div>
+                    )}
                     <Button
                       variant="ghost"
                       className="w-full justify-start text-muted-foreground"
@@ -104,17 +141,23 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-1">
-                    {directMessages.map((chat) => (
-                      <Button
-                        key={chat.id}
-                        variant={selectedChatId === chat.id ? "secondary" : "ghost"}
-                        className="w-full justify-start"
-                        onClick={() => onSelectChat(chat.id)}
-                      >
-                        <User className="mr-2 h-4 w-4" />
-                        {chat.name}
-                      </Button>
-                    ))}
+                    {directMessages.length > 0 ? (
+                      directMessages.map((chat) => (
+                        <Button
+                          key={chat.id}
+                          variant={selectedChatId === chat.id ? "secondary" : "ghost"}
+                          className="w-full justify-start"
+                          onClick={() => onSelectChat(chat.id)}
+                        >
+                          <User className="mr-2 h-4 w-4" />
+                          {chat.name}
+                        </Button>
+                      ))
+                    ) : (
+                      <div className="px-2 py-1 text-sm text-muted-foreground">
+                        No direct messages yet
+                      </div>
+                    )}
                     <Button
                       variant="ghost"
                       className="w-full justify-start text-muted-foreground"
@@ -131,6 +174,13 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
           </div>
         </ScrollArea>
       )}
+      <Button 
+        variant="outline" 
+        onClick={handleLogout}
+        className="w-full mt-auto mb-4"
+      >
+        Logout
+      </Button>
     </div>
   )
 } 
