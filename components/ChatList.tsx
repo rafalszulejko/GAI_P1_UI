@@ -12,9 +12,10 @@ interface ChatListProps {
   selectedChatId?: string
   chats: Chat[]
   isLoading: boolean
+  onChatCreated?: (chat: Chat) => void
 }
 
-export default function ChatList({ onSelectChat, selectedChatId, chats, isLoading }: ChatListProps) {
+export default function ChatList({ onSelectChat, selectedChatId, chats, isLoading, onChatCreated }: ChatListProps) {
   const [error, setError] = useState<string | null>(null)
   const { getToken, isAuthenticated } = useAuth()
 
@@ -38,6 +39,9 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
       }
       const chat = await createChat(newChat as Chat, token)
       onSelectChat(chat.id)
+      if (onChatCreated) {
+        onChatCreated(chat)
+      }
     } catch (error) {
       const message = error instanceof ChatServiceError 
         ? error.message 

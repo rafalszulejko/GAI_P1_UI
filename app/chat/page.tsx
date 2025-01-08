@@ -77,13 +77,22 @@ export default function ChatPage() {
             selectedChatId={selectedChatId}
             onSelectChat={handleSelectChat}
             isLoading={isLoading}
+            onChatCreated={(chat) => {
+              setChats(prevChats => [...prevChats, chat])
+              setSelectedChatId(chat.id)
+            }}
           />
         )}
         <div className="flex-1">
-          <ChatArea
-            chatId={selectedChatId}
-            isLoading={isLoading}
-          />
+          {selectedChatId ? (
+            <ChatArea
+              chatId={selectedChatId}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-muted-foreground">Select a chat to get started</div>
+            </div>
+          )}
         </div>
       </div>
     </RequireAuth>
