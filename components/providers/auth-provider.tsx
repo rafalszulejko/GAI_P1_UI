@@ -36,8 +36,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       authorizationParams={{
         redirect_uri: `${origin}/auth/callback`,
         audience: auth0Config.authorizationParams.audience,
-        scope: auth0Config.authorizationParams.scope,
-        response_type: auth0Config.authorizationParams.response_type
+        scope: 'openid profile email offline_access',
+        response_type: 'code'
       }}
       cacheLocation="localstorage"
       useRefreshTokens={true}
@@ -49,21 +49,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 function AuthContextProvider({ children }: { children: React.ReactNode }) {
-  const { getAccessTokenSilently, isAuthenticated, isLoading, user } = useAuth0();
+  const { getAccessTokenSilently, isAuthenticated, isLoading, user, logout } = useAuth0();
 
   const getToken = async () => {
     try {
       if (!isAuthenticated) {
         return undefined;
       }
-      return await getAccessTokenSilently({
+      const token = await getAccessTokenSilently({
+        detailedResponse: true,
+        timeoutInSeconds: 60,
         authorizationParams: {
           audience: auth0Config.authorizationParams.audience,
-          scope: auth0Config.authorizationParams.scope,
-        },
+          scope: 'openid profile email offline_access',
+        }
       });
+      return token.access_token;
     } catch (error) {
       console.error('Failed to get token:', error);
+      // If we get an invalid token error, log the user out
+      if (error instanceof Error && 
+          (error.message.includes('invalid_grant') || 
+           error.message.includes('invalid refresh token'))) {
+        await logout({ 
+          logoutParams: { 
+            returnTo: window.location.origin 
+          },
+          openUrl: false
+        });
+      }
       return undefined;
     }
   };
