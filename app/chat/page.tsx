@@ -68,6 +68,12 @@ export default function ChatPage() {
     setSelectedChatId(chat.id);
   };
 
+  const handleChatUpdate = (updatedChat: Chat) => {
+    setChats(prevChats => prevChats.map(chat => 
+      chat.id === updatedChat.id ? updatedChat : chat
+    ));
+  };
+
   if (isAuthLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -92,6 +98,7 @@ export default function ChatPage() {
           {selectedChatId ? (
             <ChatArea
               chatId={selectedChatId}
+              onChatUpdated={handleChatUpdate}
             />
           ) : (
             <div className="flex items-center justify-center h-full">

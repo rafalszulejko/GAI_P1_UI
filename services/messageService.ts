@@ -3,7 +3,7 @@ import { API_BASE } from '@/config/api'
 import { logRequest } from '@/utils/apiLogger'
 import { getAuthToken } from '@/utils/auth'
 
-const MESSAGES_ENDPOINT = (chatId: string) => `${API_BASE}/chats/${chatId}/messages`
+const MESSAGES_ENDPOINT = `${API_BASE}/messages`
 
 const getAuthHeaders = (token?: string) => {
   if (!token) {
@@ -17,7 +17,7 @@ const getAuthHeaders = (token?: string) => {
 
 export const getMessagesByChat = async (chatId: string, token: string): Promise<Message[]> => {
   const headers = getAuthHeaders(token);
-  const url = MESSAGES_ENDPOINT(chatId);
+  const url = `${MESSAGES_ENDPOINT}/chat/${chatId}`;
   const response = await logRequest(
     {
       url,
@@ -35,7 +35,6 @@ export const getMessagesByChat = async (chatId: string, token: string): Promise<
 
 export const sendMessage = async (chatId: string, content: string, token: string): Promise<Message> => {
   const headers = getAuthHeaders(token);
-  const url = MESSAGES_ENDPOINT(chatId);
   const message: Partial<Message> = {
     chatId,
     content,
@@ -45,11 +44,11 @@ export const sendMessage = async (chatId: string, content: string, token: string
   const response = await logRequest(
     {
       method: 'POST',
-      url,
+      url: MESSAGES_ENDPOINT,
       headers,
       body: message
     },
-    () => fetch(url, {
+    () => fetch(MESSAGES_ENDPOINT, {
       method: 'POST',
       headers,
       body: JSON.stringify(message)
@@ -62,19 +61,27 @@ export const sendMessage = async (chatId: string, content: string, token: string
 };
 
 export async function updateMessage(messageId: string, message: Partial<Message>, token: string): Promise<Message> {
-  const response = await fetch(`/api/messages/${messageId}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+  const headers = getAuthHeaders(token);
+  const url = `${MESSAGES_ENDPOINT}/${messageId}`;
+  
+  const response = await logRequest(
+    {
+      method: 'PUT',
+      url,
+      headers,
+      body: message
     },
-    body: JSON.stringify(message)
-  })
+    () => fetch(url, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(message)
+    })
+  );
 
   if (!response.ok) {
-    throw new Error('Failed to update message')
+    throw new Error('Failed to update message');
   }
 
-  return response.json()
+  return response.json();
 }
 

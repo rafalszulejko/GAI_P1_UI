@@ -7,16 +7,17 @@ import { Message, Chat } from '@/types/chat'
 import { User } from '@/types/user'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getMessagesByChat, sendMessage } from '@/services/messageService'
-import { getChatById, ChatServiceError } from '@/services/chatService'
+import { getChatById, ChatServiceError, updateChat } from '@/services/chatService'
 import { getUserByUsername } from '@/services/userService'
 import { useAuth } from '@/components/providers/auth-provider'
 import ThreadArea from './ThreadArea'
 
 interface ChatAreaProps {
   chatId: string
+  onChatUpdated?: (chat: Chat) => void
 }
 
-export default function ChatArea({ chatId }: ChatAreaProps) {
+export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [chat, setChat] = useState<Chat | null>(null)
@@ -26,6 +27,9 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
   const [threadParentMessage, setThreadParentMessage] = useState<Message | null>(null)
   const [users, setUsers] = useState<Map<string, User>>(new Map())
   const { getToken } = useAuth()
+  const [isEditing, setIsEditing] = useState(false)
+  const [editedName, setEditedName] = useState('')
+  const [editedDescription, setEditedDescription] = useState('')
 
   useEffect(() => {
     let mounted = true
@@ -131,6 +135,37 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
     setActiveThreadId(updatedMessage.threadId)
   }
 
+  const handleStartEdit = () => {
+    setEditedName(chat?.name ?? '')
+    setEditedDescription(chat?.description ?? '')
+    setIsEditing(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!chat) return
+
+    try {
+      const token = await getToken()
+      if (!token) {
+        throw new Error('No authentication token available')
+      }
+
+      const updatedChat = await updateChat(chat.id, {
+        id: chat.id,
+        name: editedName,
+        description: editedDescription
+      }, token)
+
+      setChat(updatedChat)
+      setIsEditing(false)
+      if (onChatUpdated) {
+        onChatUpdated(updatedChat)
+      }
+    } catch (error) {
+      setError('Failed to update chat')
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -159,9 +194,34 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
     <div className="flex h-full">
       <div className="flex flex-col flex-1">
         <div className="border-b p-4">
-          <h2 className="font-semibold">{chat.name}</h2>
-          {chat.description && (
-            <p className="text-sm text-gray-500">{chat.description}</p>
+          {isEditing ? (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  className="font-semibold"
+                />
+                <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={handleSaveEdit}>
+                  Save
+                </Button>
+              </div>
+              <Input
+                value={editedDescription}
+                onChange={(e) => setEditedDescription(e.target.value)}
+                className="text-sm text-gray-500"
+              />
+            </div>
+          ) : (
+            <div className="cursor-pointer" onClick={handleStartEdit}>
+              <h2 className="font-semibold">{chat.name}</h2>
+              {chat.description && (
+                <p className="text-sm text-gray-500">{chat.description}</p>
+              )}
+            </div>
           )}
         </div>
 

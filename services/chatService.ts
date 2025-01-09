@@ -53,4 +53,21 @@ export async function createChat(chat: Chat, token: string): Promise<Chat> {
   }
 
   return response.json();
+}
+
+export async function updateChat(chatId: string, chat: Partial<Chat>, token: string): Promise<Chat> {
+  const response = await fetch(`${CHATS_ENDPOINT}/${chatId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(chat)
+  });
+
+  if (!response.ok) {
+    throw new ChatServiceError('Failed to update chat');
+  }
+
+  return response.json();
 } 
