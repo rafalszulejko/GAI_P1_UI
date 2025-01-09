@@ -24,7 +24,7 @@ export const getCurrentUser = async (): Promise<User> => {
   return response.json();
 };
 
-export const getUserByUsername = async (username: string): Promise<User> => {
+export const getUserById = async (username: string): Promise<User> => {
   const headers = await getAuthHeaders();
   const response = await logRequest(
     {

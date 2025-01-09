@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react'
 import { Chat, ChatType } from '@/types/chat'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Plus, Loader2, Hash, User, Search } from 'lucide-react'
+import { Plus, Loader2, Hash, User, Search, X } from 'lucide-react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { createChat, ChatServiceError, getAllChats } from '@/services/chatService'
 import { getCurrentUser } from '@/services/userService'
-import { addChatMember } from '@/services/chatMemberService'
+import { addChatMember, getChatMembers, withoutUser } from '@/services/chatMemberService'
+import { searchContent } from '@/services/searchService'
+import { SearchType } from '@/types/search'
+import { getUserById } from '@/services/userService'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
@@ -18,6 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { sendMessage } from '@/services/messageService'
 
 interface ChatListProps {
   onSelectChat: (chatId: string) => void
@@ -25,6 +29,11 @@ interface ChatListProps {
   chats: Chat[]
   isLoading: boolean
   onChatCreated?: (chat: Chat) => void
+}
+
+interface SelectedUser {
+  id: string;
+  name: string;
 }
 
 export default function ChatList({ onSelectChat, selectedChatId, chats, isLoading, onChatCreated }: ChatListProps) {
@@ -38,6 +47,14 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
   const [selectedChannelId, setSelectedChannelId] = useState<string>('')
   const [isLoadingChannels, setIsLoadingChannels] = useState(false)
   const { getToken, isAuthenticated } = useAuth()
+  const [isNewMessageModalOpen, setIsNewMessageModalOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [selectedUser, setSelectedUser] = useState<SelectedUser | null>(null)
+  const [messageText, setMessageText] = useState('')
+  const [isSearching, setIsSearching] = useState(false)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [otherUsernames, setOtherUsernames] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -45,6 +62,7 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
         try {
           const user = await getCurrentUser()
           setUserId(user.id)
+          setCurrentUser(user)
         } catch (error) {
           console.error('Error fetching user:', error)
           setError('Failed to fetch user data')
@@ -53,6 +71,54 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
     }
     fetchUser()
   }, [isAuthenticated])
+
+  useEffect(() => {
+    const searchUsers = async () => {
+      if (searchQuery.length >= 3) {
+        setIsSearching(true)
+        try {
+          const results = await searchContent(searchQuery, [SearchType.USER])
+          setSearchResults(results.users || [])
+        } catch (error) {
+          console.error('Error searching users:', error)
+          setError('Failed to search users')
+        } finally {
+          setIsSearching(false)
+        }
+      } else {
+        setSearchResults([])
+      }
+    }
+
+    const debounceTimeout = setTimeout(searchUsers, 300)
+    return () => clearTimeout(debounceTimeout)
+  }, [searchQuery])
+
+  useEffect(() => {
+    const fetchOtherUsernames = async () => {
+      if (!userId) return;
+      
+      const directChats = chats.filter(chat => chat.type === ChatType.DIRECT);
+      const newUsernames: Record<string, string> = {};
+      
+      for (const chat of directChats) {
+        try {
+          const members = await getChatMembers(chat.id);
+          const otherMembers = withoutUser(members, userId);
+          if (otherMembers.length > 0) {
+            const otherUser = await getUserById(otherMembers[0].userId);
+            newUsernames[chat.id] = otherUser.username;
+          }
+        } catch (error) {
+          console.error('Error fetching other username for chat:', chat.id, error);
+        }
+      }
+      
+      setOtherUsernames(newUsernames);
+    };
+
+    fetchOtherUsernames();
+  }, [chats, userId]);
 
   const handleBrowseChannels = async () => {
     if (!isAuthenticated) return
@@ -125,6 +191,42 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
       const message = error instanceof ChatServiceError 
         ? error.message 
         : 'Failed to create chat'
+      setError(message)
+    }
+  }
+
+  const handleCreateDirectMessage = async () => {
+    if (!selectedUser || !messageText.trim() || !currentUser) return
+
+    try {
+      // Create new chat
+      const newChat = await createChat({
+        name: `${currentUser.username}-${selectedUser.name} DM`,
+        type: ChatType.DIRECT,
+        lastMessageAt: new Date()
+      } as Chat)
+
+      // Add recipient to chat
+      await addChatMember(newChat.id, selectedUser.id)
+
+      // Send the initial message
+      await sendMessage(newChat.id, messageText)
+
+      // Select the new chat
+      onSelectChat(newChat.id)
+      if (onChatCreated) {
+        onChatCreated(newChat)
+      }
+
+      // Reset form and close modal
+      setSelectedUser(null)
+      setMessageText('')
+      setSearchQuery('')
+      setIsNewMessageModalOpen(false)
+    } catch (error) {
+      const message = error instanceof ChatServiceError 
+        ? error.message 
+        : 'Failed to create direct message'
       setError(message)
     }
   }
@@ -210,7 +312,7 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
                           onClick={() => onSelectChat(chat.id)}
                         >
                           <User className="mr-2 h-4 w-4" />
-                          {chat.name}
+                          {otherUsernames[chat.id] || chat.name}
                         </Button>
                       ))
                     ) : (
@@ -221,7 +323,7 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
                     <Button
                       variant="ghost"
                       className="w-full justify-start text-muted-foreground"
-                      onClick={() => handleCreateChat(ChatType.DIRECT)}
+                      onClick={() => setIsNewMessageModalOpen(true)}
                       disabled={isLoading}
                     >
                       <Plus className="mr-2 h-4 w-4" />
@@ -331,6 +433,98 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
               disabled={!selectedChannelId}
             >
               Join Channel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isNewMessageModalOpen} onOpenChange={setIsNewMessageModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New Direct Message</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>To:</Label>
+              <div className="relative">
+                {selectedUser ? (
+                  <div className="flex items-center gap-2 border rounded-md p-2">
+                    <div className="bg-primary/10 text-primary rounded-md px-2 py-1 text-sm flex items-center gap-1">
+                      {selectedUser.name}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 w-4 p-0 hover:bg-transparent"
+                        onClick={() => {
+                          setSelectedUser(null)
+                          setSearchQuery('')
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Input
+                      placeholder="Search users..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    {isSearching && (
+                      <Loader2 className="absolute right-2 top-2 h-4 w-4 animate-spin" />
+                    )}
+                    {searchResults.length > 0 && !selectedUser && (
+                      <ScrollArea className="absolute z-10 mt-1 max-h-48 w-full rounded-md border bg-popover p-1">
+                        {searchResults.map((user) => (
+                          <Button
+                            key={user.id}
+                            variant="ghost"
+                            className="w-full justify-start"
+                            onClick={() => {
+                              setSelectedUser({ id: user.id, name: user.username })
+                              setSearchResults([])
+                            }}
+                          >
+                            <User className="mr-2 h-4 w-4" />
+                            <div className="flex flex-col items-start">
+                              <span>{user.username}</span>
+                              <span className="text-xs text-muted-foreground">{user.email}</span>
+                            </div>
+                          </Button>
+                        ))}
+                      </ScrollArea>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Message</Label>
+              <Textarea
+                placeholder="Type your message..."
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsNewMessageModalOpen(false)
+                setSelectedUser(null)
+                setMessageText('')
+                setSearchQuery('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateDirectMessage}
+              disabled={!selectedUser || !messageText.trim()}
+            >
+              Send Message
             </Button>
           </DialogFooter>
         </DialogContent>

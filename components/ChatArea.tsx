@@ -8,7 +8,7 @@ import { User } from '@/types/user'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getMessagesByChat, sendMessage } from '@/services/messageService'
 import { getChatById, ChatServiceError, updateChat } from '@/services/chatService'
-import { getUserByUsername } from '@/services/userService'
+import { getUserById } from '@/services/userService'
 import { useAuth } from '@/components/providers/auth-provider'
 import ThreadArea from './ThreadArea'
 
@@ -52,7 +52,7 @@ export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
         // Fetch user data for each unique sender
         const userPromises = Array.from(senderIds).map(async (senderId) => {
           try {
-            const user = await getUserByUsername(senderId)
+            const user = await getUserById(senderId)
             return [senderId, user] as [string, User]
           } catch (error) {
             console.error(`Failed to fetch user data for ${senderId}:`, error)

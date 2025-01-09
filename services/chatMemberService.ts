@@ -66,4 +66,27 @@ export async function getUserChats(): Promise<ChatMember[]> {
   }
 
   return response.json();
+}
+
+export async function getChatMembers(chatId: string): Promise<ChatMember[]> {
+  const headers = await getAuthHeaders();
+  const response = await logRequest(
+    {
+      url: `${CHAT_MEMBERS_ENDPOINT}/${chatId}`,
+      headers
+    },
+    () => fetch(`${CHAT_MEMBERS_ENDPOINT}/${chatId}`, {
+      headers
+    })
+  );
+
+  if (!response.ok) {
+    throw new ChatMemberServiceError('Failed to fetch chat members');
+  }
+
+  return response.json();
+}
+
+export function withoutUser(members: ChatMember[], userId: string): ChatMember[] {
+  return members.filter(member => member.userId !== userId);
 } 
