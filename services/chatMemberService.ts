@@ -1,5 +1,7 @@
 import { ChatMember } from '@/types/chat';
 import { API_BASE } from '@/config/api';
+import { getAuthHeaders } from '@/utils/auth';
+import { logRequest } from '@/utils/apiLogger';
 
 const CHAT_MEMBERS_ENDPOINT = `${API_BASE}/chat_members`;
 
@@ -10,22 +12,35 @@ export class ChatMemberServiceError extends Error {
   }
 }
 
-export async function addChatMember(chatId: string, userId: string, token: string): Promise<ChatMember> {
-  const response = await fetch(CHAT_MEMBERS_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+export async function addChatMember(chatId: string, userId: string): Promise<ChatMember> {
+  const headers = await getAuthHeaders();
+  const response = await logRequest(
+    {
+      method: 'POST',
+      url: CHAT_MEMBERS_ENDPOINT,
+      headers,
+      body: {
+        chatId,
+        userId,
+        joinedAt: new Date(),
+        lastRead: new Date(),
+        isMuted: false,
+        isBlocked: false
+      }
     },
-    body: JSON.stringify({
-      chatId,
-      userId,
-      joinedAt: new Date(),
-      lastRead: new Date(),
-      isMuted: false,
-      isBlocked: false
+    () => fetch(CHAT_MEMBERS_ENDPOINT, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        chatId,
+        userId,
+        joinedAt: new Date(),
+        lastRead: new Date(),
+        isMuted: false,
+        isBlocked: false
+      })
     })
-  });
+  );
 
   if (!response.ok) {
     throw new ChatMemberServiceError('Failed to add chat member');
@@ -34,12 +49,17 @@ export async function addChatMember(chatId: string, userId: string, token: strin
   return response.json();
 }
 
-export async function getUserChats(token: string): Promise<ChatMember[]> {
-  const response = await fetch(CHAT_MEMBERS_ENDPOINT, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
+export async function getUserChats(): Promise<ChatMember[]> {
+  const headers = await getAuthHeaders();
+  const response = await logRequest(
+    {
+      url: CHAT_MEMBERS_ENDPOINT,
+      headers
+    },
+    () => fetch(CHAT_MEMBERS_ENDPOINT, {
+      headers
+    })
+  );
 
   if (!response.ok) {
     throw new ChatMemberServiceError('Failed to fetch user chats');

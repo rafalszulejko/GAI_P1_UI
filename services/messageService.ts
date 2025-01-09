@@ -1,22 +1,12 @@
 import { Message } from '@/types/chat'
 import { API_BASE } from '@/config/api'
 import { logRequest } from '@/utils/apiLogger'
-import { getAuthToken } from '@/utils/auth'
+import { getAuthHeaders } from '@/utils/auth'
 
 const MESSAGES_ENDPOINT = `${API_BASE}/messages`
 
-const getAuthHeaders = (token?: string) => {
-  if (!token) {
-    throw new Error('No authentication token provided');
-  }
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  };
-};
-
-export const getMessagesByChat = async (chatId: string, token: string): Promise<Message[]> => {
-  const headers = getAuthHeaders(token);
+export const getMessagesByChat = async (chatId: string): Promise<Message[]> => {
+  const headers = await getAuthHeaders();
   const url = `${MESSAGES_ENDPOINT}/chat/${chatId}`;
   const response = await logRequest(
     {
@@ -33,8 +23,8 @@ export const getMessagesByChat = async (chatId: string, token: string): Promise<
   return response.json();
 };
 
-export const sendMessage = async (chatId: string, content: string, token: string): Promise<Message> => {
-  const headers = getAuthHeaders(token);
+export const sendMessage = async (chatId: string, content: string): Promise<Message> => {
+  const headers = await getAuthHeaders();
   const message: Partial<Message> = {
     chatId,
     content,
@@ -60,8 +50,8 @@ export const sendMessage = async (chatId: string, content: string, token: string
   return response.json();
 };
 
-export async function updateMessage(messageId: string, message: Partial<Message>, token: string): Promise<Message> {
-  const headers = getAuthHeaders(token);
+export async function updateMessage(messageId: string, message: Partial<Message>): Promise<Message> {
+  const headers = await getAuthHeaders();
   const url = `${MESSAGES_ENDPOINT}/${messageId}`;
   
   const response = await logRequest(

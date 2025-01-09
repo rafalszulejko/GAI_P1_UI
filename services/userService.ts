@@ -1,17 +1,9 @@
 import { User } from '@/types/user'
 import { API_BASE } from '@/config/api'
 import { logRequest } from '@/utils/apiLogger'
-import { getAuthToken } from '@/utils/auth'
+import { getAuthHeaders } from '@/utils/auth'
 
 const USERS_ENDPOINT = `${API_BASE}/users`
-
-const getAuthHeaders = async () => {
-  const token = await getAuthToken();
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  };
-};
 
 export const getCurrentUser = async (): Promise<User> => {
   const headers = await getAuthHeaders();

@@ -59,12 +59,7 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
     
     try {
       setIsLoadingChannels(true)
-      const token = await getToken()
-      if (!token) {
-        throw new ChatServiceError('No authentication token available')
-      }
-      
-      const allChats = await getAllChats(token)
+      const allChats = await getAllChats()
       // Filter to only show channels that the user is not a member of
       const userChatIds = new Set(chats.map(chat => chat.id))
       const availableChats = allChats.filter(
@@ -87,12 +82,7 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
     if (!isAuthenticated || !selectedChannelId || !userId) return
     
     try {
-      const token = await getToken()
-      if (!token) {
-        throw new ChatServiceError('No authentication token available')
-      }
-      
-      await addChatMember(selectedChannelId, userId, token)
+      await addChatMember(selectedChannelId, userId)
       const selectedChannel = availableChannels.find(c => c.id === selectedChannelId)
       if (selectedChannel && onChatCreated) {
         onChatCreated(selectedChannel)
@@ -116,17 +106,13 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
     if (!isAuthenticated) return
     
     try {
-      const token = await getToken()
-      if (!token) {
-        throw new ChatServiceError('No authentication token available')
-      }
       const newChat: Partial<Chat> = {
         name: newChannelName || 'New Chat',
         description: newChannelDescription || 'New chat description',
         type: type,
         lastMessageAt: new Date()
       }
-      const chat = await createChat(newChat as Chat, token)
+      const chat = await createChat(newChat as Chat)
       onSelectChat(chat.id)
       if (onChatCreated) {
         onChatCreated(chat)

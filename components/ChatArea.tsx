@@ -41,14 +41,9 @@ export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
       setError(null)
 
       try {
-        const token = await getToken()
-        if (!token) {
-          throw new ChatServiceError('No authentication token available')
-        }
-
         const [chatData, messagesData] = await Promise.all([
-          getChatById(chatId, token),
-          getMessagesByChat(chatId, token)
+          getChatById(chatId),
+          getMessagesByChat(chatId)
         ])
 
         // Get unique sender IDs from messages
@@ -99,12 +94,7 @@ export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
     if (!newMessage.trim() || !chatId) return
 
     try {
-      const token = await getToken()
-      if (!token) {
-        throw new Error('No authentication token available')
-      }
-
-      const message = await sendMessage(chatId, newMessage.trim(), token)
+      const message = await sendMessage(chatId, newMessage.trim())
       setMessages(prev => [...prev, message])
       setNewMessage('')
     } catch (error) {
@@ -145,16 +135,11 @@ export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
     if (!chat) return
 
     try {
-      const token = await getToken()
-      if (!token) {
-        throw new Error('No authentication token available')
-      }
-
       const updatedChat = await updateChat(chat.id, {
         id: chat.id,
         name: editedName,
         description: editedDescription
-      }, token)
+      })
 
       setChat(updatedChat)
       setIsEditing(false)

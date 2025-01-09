@@ -108,4 +108,13 @@ export function clearAuthToken() {
   accessToken = null;
   tokenExpiryTime = null;
   tokenPromise = null;
-} 
+}
+
+export const getAuthHeaders = async () => {
+  const token = await getAuthToken();
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  };
+}; 

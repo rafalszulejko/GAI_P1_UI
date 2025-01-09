@@ -37,12 +37,7 @@ export default function ThreadArea({ threadId, parentMessage, onClose, onParentU
       setError(null)
 
       try {
-        const token = await getToken()
-        if (!token) {
-          throw new ChatServiceError('No authentication token available')
-        }
-
-        const messagesData = await getMessagesByChat(threadId, token)
+        const messagesData = await getMessagesByChat(threadId)
 
         if (mounted) {
           setMessages(messagesData)
@@ -70,11 +65,6 @@ export default function ThreadArea({ threadId, parentMessage, onClose, onParentU
     if (!newMessage.trim()) return
 
     try {
-      const token = await getToken()
-      if (!token) {
-        throw new Error('No authentication token available')
-      }
-
       // For new threads, create a thread chat first
       let actualThreadId = threadId
       if (threadId === '') {
@@ -85,7 +75,7 @@ export default function ThreadArea({ threadId, parentMessage, onClose, onParentU
           description: '',
           type: ChatType.THREAD,
           lastMessageAt: new Date()
-        }, token)
+        })
         
         actualThreadId = threadChat.id
 
@@ -93,7 +83,7 @@ export default function ThreadArea({ threadId, parentMessage, onClose, onParentU
         const updatedParent = await updateMessage(parentMessage.id, {
           ...parentMessage,
           threadId: actualThreadId
-        }, token)
+        })
 
         // Notify parent component about the update
         if (onParentUpdate) {
@@ -104,7 +94,7 @@ export default function ThreadArea({ threadId, parentMessage, onClose, onParentU
       if (!actualThreadId) return
 
       // Send the new message
-      const message = await sendMessage(actualThreadId, newMessage.trim(), token)
+      const message = await sendMessage(actualThreadId, newMessage.trim())
       setMessages(prev => [...prev, message])
       setNewMessage('')
     } catch (error) {

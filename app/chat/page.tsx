@@ -26,15 +26,12 @@ export default function ChatPage() {
       
       try {
         setIsLoading(true);
-        const token = await getToken();
-        if (!token) return;
-        
-        const members = await getUserChats(token);
+        const members = await getUserChats();
         if (mounted) {
           setChatMembers(members);
           
           // Fetch all chat details in parallel
-          const chatPromises = members.map(member => getChatById(member.chatId, token));
+          const chatPromises = members.map(member => getChatById(member.chatId));
           const chatDetails = await Promise.all(chatPromises);
           
           setChats(chatDetails);

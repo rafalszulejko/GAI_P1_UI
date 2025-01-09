@@ -1,18 +1,9 @@
 import { SearchQuery, SearchResults, SearchType } from '@/types/search';
 import { API_BASE } from '@/config/api';
-import { getAuthToken } from '@/utils/auth';
+import { getAuthHeaders } from '@/utils/auth';
 import { logRequest } from '@/utils/apiLogger';
 
 const SEARCH_ENDPOINT = `${API_BASE}/search`;
-
-const getAuthHeaders = async () => {
-  const token = await getAuthToken();
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  };
-};
 
 export const searchContent = async (
   queryString: string,
