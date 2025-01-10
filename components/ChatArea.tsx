@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -11,6 +11,7 @@ import { getChatById, ChatServiceError, updateChat } from '@/services/chatServic
 import { getUserById } from '@/services/userService'
 import { useAuth } from '@/components/providers/auth-provider'
 import ThreadArea from './ThreadArea'
+import { SSEService, ChatEvent } from '@/services/sseService'
 
 interface ChatAreaProps {
   chatId: string
@@ -26,10 +27,26 @@ export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const [threadParentMessage, setThreadParentMessage] = useState<Message | null>(null)
   const [users, setUsers] = useState<Map<string, User>>(new Map())
+  const [onlineUsers, setOnlineUsers] = useState<string[]>([])
   const { getToken } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [editedName, setEditedName] = useState('')
   const [editedDescription, setEditedDescription] = useState('')
+  const sseService = useRef(new SSEService())
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Function to scroll to bottom
+  const scrollToBottom = () => {
+    if (scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current;
+      scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    }
+  };
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   useEffect(() => {
     let mounted = true
@@ -41,9 +58,10 @@ export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
       setError(null)
 
       try {
-        const [chatData, messagesData] = await Promise.all([
+        const [chatData, messagesData, initialOnlineUsers] = await Promise.all([
           getChatById(chatId),
-          getMessagesByChat(chatId)
+          getMessagesByChat(chatId),
+          sseService.current.getOnlineUsers()
         ])
 
         // Get unique sender IDs from messages
@@ -67,6 +85,27 @@ export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
           setChat(chatData)
           setMessages(messagesData)
           setUsers(new Map(userEntries))
+          setOnlineUsers(initialOnlineUsers)
+
+          // Subscribe to SSE events
+          await sseService.current.subscribeToChatUpdates(chatId, (event: ChatEvent) => {
+            console.log('Processing event in ChatArea:', event); // Debug log
+            switch (event.type) {
+              case 'NEW_MESSAGE':
+                setMessages(prev => [...prev, event.data]);
+                // Fetch user data if we don't have it
+                if (!users.has(event.data.senderId)) {
+                  getUserById(event.data.senderId)
+                    .then(user => setUsers(prev => new Map(prev).set(event.data.senderId, user)))
+                    .catch(console.error);
+                }
+                break;
+              case 'ONLINE_USERS':
+              case 'PRESENCE_UPDATE':
+                setOnlineUsers(event.data);
+                break;
+            }
+          });
         }
       } catch (error) {
         if (mounted) {
@@ -86,7 +125,10 @@ export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
       fetchData()
     }
 
-    return () => { mounted = false }
+    return () => { 
+      mounted = false
+      sseService.current.cleanup()
+    }
   }, [chatId])
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -210,10 +252,11 @@ export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
           )}
         </div>
 
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
           <div className="space-y-4">
             {messages.map((message) => {
               const user = users.get(message.senderId)
+              const isOnline = onlineUsers.includes(message.senderId)
               return (
                 <div 
                   key={message.id} 
@@ -224,7 +267,10 @@ export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
                     <AvatarFallback>{user?.username?.[0] ?? message.senderId[0]}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                    <div className="font-medium">{user?.username ?? message.senderId}</div>
+                    <div className="font-medium">
+                      {user?.username ?? message.senderId}
+                      {isOnline && <span className="ml-2 text-green-500">(online)</span>}
+                    </div>
                     <div className="text-sm">{message.content}</div>
                     <div className="text-xs text-gray-500">
                       {new Date(message.sentAt).toLocaleString()}
