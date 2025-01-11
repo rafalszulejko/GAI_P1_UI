@@ -2,14 +2,13 @@ import { useState, useEffect } from 'react'
 import { Chat, ChatType } from '@/types/chat'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Plus, Loader2, Hash, User, Search, X } from 'lucide-react'
+import { Plus, Loader2, Hash, User as UserIcon, Search, X } from 'lucide-react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { createChat, ChatServiceError, getAllChats } from '@/services/chatService'
-import { getCurrentUser } from '@/services/userService'
 import { addChatMember, getChatMembers, withoutUser } from '@/services/chatMemberService'
 import { searchContent } from '@/services/searchService'
 import { SearchType } from '@/types/search'
-import { getUserById } from '@/services/userService'
+import { useUserStore } from '@/store/userStore'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
@@ -38,7 +37,6 @@ interface SelectedUser {
 
 export default function ChatList({ onSelectChat, selectedChatId, chats, isLoading, onChatCreated }: ChatListProps) {
   const [error, setError] = useState<string | null>(null)
-  const [userId, setUserId] = useState<string>('')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isBrowseModalOpen, setIsBrowseModalOpen] = useState(false)
   const [newChannelName, setNewChannelName] = useState('')
@@ -53,24 +51,38 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
   const [selectedUser, setSelectedUser] = useState<SelectedUser | null>(null)
   const [messageText, setMessageText] = useState('')
   const [isSearching, setIsSearching] = useState(false)
-  const [currentUser, setCurrentUser] = useState<any>(null)
-  const [otherUsernames, setOtherUsernames] = useState<Record<string, string>>({})
+  const currentUser = useUserStore(state => state.currentUser)
+  const [otherUserIds, setOtherUserIds] = useState<Record<string, string>>({})
+  const users = useUserStore(state => state.users)
+  const fetchUser = useUserStore(state => state.fetchUser)
 
   useEffect(() => {
-    const fetchUser = async () => {
-      if (isAuthenticated) {
+    const fetchOtherUserIds = async () => {
+      if (!currentUser) return;
+      
+      const directChats = chats.filter(chat => chat.type === ChatType.DIRECT);
+      const newUserIds: Record<string, string> = {};
+      
+      for (const chat of directChats) {
         try {
-          const user = await getCurrentUser()
-          setUserId(user.id)
-          setCurrentUser(user)
+          const members = await getChatMembers(chat.id);
+          const otherMembers = withoutUser(members, currentUser.id);
+          if (otherMembers.length > 0) {
+            const userId = otherMembers[0].userId;
+            newUserIds[chat.id] = userId;
+            // Fetch user data
+            fetchUser(userId);
+          }
         } catch (error) {
-          console.error('Error fetching user:', error)
-          setError('Failed to fetch user data')
+          console.error('Error fetching other user ID for chat:', chat.id, error);
         }
       }
-    }
-    fetchUser()
-  }, [isAuthenticated])
+      
+      setOtherUserIds(newUserIds);
+    };
+
+    fetchOtherUserIds();
+  }, [chats, currentUser, fetchUser]);
 
   useEffect(() => {
     const searchUsers = async () => {
@@ -93,32 +105,6 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
     const debounceTimeout = setTimeout(searchUsers, 300)
     return () => clearTimeout(debounceTimeout)
   }, [searchQuery])
-
-  useEffect(() => {
-    const fetchOtherUsernames = async () => {
-      if (!userId) return;
-      
-      const directChats = chats.filter(chat => chat.type === ChatType.DIRECT);
-      const newUsernames: Record<string, string> = {};
-      
-      for (const chat of directChats) {
-        try {
-          const members = await getChatMembers(chat.id);
-          const otherMembers = withoutUser(members, userId);
-          if (otherMembers.length > 0) {
-            const otherUser = await getUserById(otherMembers[0].userId);
-            newUsernames[chat.id] = otherUser.username;
-          }
-        } catch (error) {
-          console.error('Error fetching other username for chat:', chat.id, error);
-        }
-      }
-      
-      setOtherUsernames(newUsernames);
-    };
-
-    fetchOtherUsernames();
-  }, [chats, userId]);
 
   const handleBrowseChannels = async () => {
     if (!isAuthenticated) return
@@ -145,10 +131,10 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
   }
 
   const handleJoinChannel = async () => {
-    if (!isAuthenticated || !selectedChannelId || !userId) return
+    if (!isAuthenticated || !selectedChannelId || !currentUser) return
     
     try {
-      await addChatMember(selectedChannelId, userId)
+      await addChatMember(selectedChannelId, currentUser.id)
       const selectedChannel = availableChannels.find(c => c.id === selectedChannelId)
       if (selectedChannel && onChatCreated) {
         onChatCreated(selectedChannel)
@@ -304,17 +290,23 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
                 <AccordionContent>
                   <div className="space-y-1">
                     {directMessages.length > 0 ? (
-                      directMessages.map((chat) => (
-                        <Button
-                          key={chat.id}
-                          variant={selectedChatId === chat.id ? "secondary" : "ghost"}
-                          className="w-full justify-start"
-                          onClick={() => onSelectChat(chat.id)}
-                        >
-                          <User className="mr-2 h-4 w-4" />
-                          {otherUsernames[chat.id] || chat.name}
-                        </Button>
-                      ))
+                      directMessages.map((chat) => {
+                        const otherUserId = otherUserIds[chat.id];
+                        const otherUser = users.get(otherUserId);
+                        return (
+                          <Button
+                            key={chat.id}
+                            variant={selectedChatId === chat.id ? "secondary" : "ghost"}
+                            className="w-full justify-start"
+                            onClick={() => onSelectChat(chat.id)}
+                          >
+                            <UserIcon className="mr-2 h-4 w-4" />
+                            <span>
+                              {otherUser?.username || `Chat ${chat.id}`}
+                            </span>
+                          </Button>
+                        );
+                      })
                     ) : (
                       <div className="px-2 py-1 text-sm text-muted-foreground">
                         No direct messages yet
@@ -486,7 +478,7 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
                               setSearchResults([])
                             }}
                           >
-                            <User className="mr-2 h-4 w-4" />
+                            <UserIcon className="mr-2 h-4 w-4" />
                             <div className="flex flex-col items-start">
                               <span>{user.username}</span>
                               <span className="text-xs text-muted-foreground">{user.email}</span>

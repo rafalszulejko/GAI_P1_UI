@@ -1,12 +1,14 @@
 import { Message } from '@/types/chat'
-import { User } from '@/types/user'
+import { useUserStore } from '@/store/userStore'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { MessageCircle } from 'lucide-react'
+import { format } from 'date-fns'
+import { useEffect } from 'react'
 
 interface ChatMessageProps {
   message: Message
-  user?: User
-  isOnline?: boolean
   isReplyAllowed?: boolean
   isThreadMessage?: boolean
   onReplyClick?: (message: Message) => void
@@ -16,52 +18,65 @@ interface ChatMessageProps {
 
 export default function ChatMessage({
   message,
-  user,
-  isOnline = false,
   isReplyAllowed = true,
   isThreadMessage = false,
   onReplyClick,
   onThreadClick,
-  className = ''
+  className
 }: ChatMessageProps) {
+  const user = useUserStore(state => state.users.get(message.senderId))
+  const fetchUser = useUserStore(state => state.fetchUser)
+
+  // Fetch user if needed
+  useEffect(() => {
+    if (message.senderId && !user) {
+      fetchUser(message.senderId)
+    }
+  }, [message.senderId, user, fetchUser])
+
   return (
-    <div 
-      className={`flex items-start gap-3 p-4 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg group ${className}`}
-    >
+    <div className={cn('flex items-start gap-3 p-4 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg group', className)}>
       <Avatar>
         {user?.avatarUrl && <AvatarImage src={user.avatarUrl} />}
         <AvatarFallback>{user?.username?.[0] ?? message.senderId[0]}</AvatarFallback>
       </Avatar>
-      <div className="flex-1">
-        <div className="font-medium">
-          {user?.username ?? message.senderId}
-          {isOnline && <span className="ml-2 text-green-500">(online)</span>}
+      <div className="flex-1 space-y-1">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">
+            {user?.username || 'Unknown User'}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {format(new Date(message.sentAt), 'MMM d, h:mm a')}
+          </span>
+          {user?.isOnline && (
+            <span className="w-2 h-2 rounded-full bg-green-500" />
+          )}
         </div>
-        <div className="text-sm">{message.content}</div>
-        <div className="text-xs text-gray-500">
-          {new Date(message.sentAt).toLocaleString()}
-        </div>
-        {message.threadId && !isThreadMessage && onThreadClick && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="mt-2 text-gray-500"
-            onClick={() => onThreadClick(message)}
-          >
-            Thread
-          </Button>
+        <p className="text-sm">{message.content}</p>
+        {isReplyAllowed && onReplyClick && (
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground"
+              onClick={() => onReplyClick(message)}
+            >
+              Reply
+            </Button>
+            {!isThreadMessage && message.threadId && onThreadClick && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground"
+                onClick={() => onThreadClick(message)}
+              >
+                <MessageCircle className="w-3 h-3 mr-1" />
+                View Thread
+              </Button>
+            )}
+          </div>
         )}
       </div>
-      {isReplyAllowed && onReplyClick && (
-        <Button 
-          variant="secondary" 
-          size="sm" 
-          className="opacity-0 group-hover:opacity-100"
-          onClick={() => onReplyClick(message)}
-        >
-          Reply
-        </Button>
-      )}
     </div>
   )
 } 

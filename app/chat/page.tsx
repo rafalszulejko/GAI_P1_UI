@@ -9,6 +9,7 @@ import ChatArea from '@/components/ChatArea';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useSidebar } from '@/components/ui/sidebar';
+import { useUserStore } from '@/store/userStore';
 
 export default function ChatPage() {
   const [chatMembers, setChatMembers] = useState<ChatMember[]>([]);
@@ -21,6 +22,15 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { getToken, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { state: sidebarState } = useSidebar();
+  const initialize = useUserStore(state => state.initialize)
+  const isInitialized = useUserStore(state => state.isInitialized)
+
+  // Initialize user store
+  useEffect(() => {
+    if (!isInitialized && isAuthenticated) {
+      initialize()
+    }
+  }, [isInitialized, isAuthenticated, initialize])
 
   useEffect(() => {
     let mounted = true;

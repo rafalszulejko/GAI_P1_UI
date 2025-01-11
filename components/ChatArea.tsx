@@ -7,7 +7,6 @@ import { Message, Chat, ChatType } from '@/types/chat'
 import { User } from '@/types/user'
 import { getMessagesByChat, sendMessage, updateMessage } from '@/services/messageService'
 import { getChatById, ChatServiceError, updateChat, createChat } from '@/services/chatService'
-import { getUserById } from '@/services/userService'
 import { useAuth } from '@/components/providers/auth-provider'
 import { SSEService, ChatEvent } from '@/services/sseService'
 import ChatMessage from './ChatMessage'
@@ -38,8 +37,6 @@ export default function ChatArea({
   const [error, setError] = useState<string | null>(null)
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const [threadParentMessage, setThreadParentMessage] = useState<Message | null>(null)
-  const [users, setUsers] = useState<Map<string, User>>(new Map())
-  const [onlineUsers, setOnlineUsers] = useState<string[]>([])
   const { getToken } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [editedName, setEditedName] = useState('')
@@ -78,52 +75,20 @@ export default function ChatArea({
           return
         }
 
-        const [chatData, messagesData, initialOnlineUsers] = await Promise.all([
+        const [chatData, messagesData] = await Promise.all([
           getChatById(chatId),
-          getMessagesByChat(chatId),
-          sseService.current.getOnlineUsers()
+          getMessagesByChat(chatId)
         ])
 
-        // Get unique sender IDs from messages
-        const senderIds = new Set(messagesData.map(message => message.senderId))
-        
-        // Fetch user data for each unique sender
-        const userPromises = Array.from(senderIds).map(async (senderId) => {
-          try {
-            const user = await getUserById(senderId)
-            return [senderId, user] as [string, User]
-          } catch (error) {
-            console.error(`Failed to fetch user data for ${senderId}:`, error)
-            return null
-          }
-        })
-
-        const userEntries = (await Promise.all(userPromises))
-          .filter((entry): entry is [string, User] => entry !== null)
-        
         if (mounted) {
           setChat(chatData)
           setMessages(messagesData)
-          setUsers(new Map(userEntries))
-          setOnlineUsers(initialOnlineUsers)
 
           // Subscribe to SSE events only for existing chats
           await sseService.current.subscribeToChatUpdates(chatId, (event: ChatEvent) => {
             console.log('Processing event in ChatArea:', event); // Debug log
-            switch (event.type) {
-              case 'NEW_MESSAGE':
-                setMessages(prev => [...prev, event.data]);
-                // Fetch user data if we don't have it
-                if (!users.has(event.data.senderId)) {
-                  getUserById(event.data.senderId)
-                    .then(user => setUsers(prev => new Map(prev).set(event.data.senderId, user)))
-                    .catch(console.error);
-                }
-                break;
-              case 'ONLINE_USERS':
-              case 'PRESENCE_UPDATE':
-                setOnlineUsers(event.data);
-                break;
+            if (event.type === 'NEW_MESSAGE') {
+              setMessages(prev => [...prev, event.data]);
             }
           });
         }
@@ -302,8 +267,6 @@ export default function ChatArea({
           {mode === ChatType.THREAD && parentMessage && (
             <ChatMessage
               message={parentMessage}
-              user={users.get(parentMessage.senderId)}
-              isOnline={onlineUsers.includes(parentMessage.senderId)}
               isReplyAllowed={false}
               isThreadMessage={true}
               className="mt-4 bg-muted/50"
@@ -313,8 +276,6 @@ export default function ChatArea({
             <ChatMessage
               key={message.id}
               message={message}
-              user={users.get(message.senderId)}
-              isOnline={onlineUsers.includes(message.senderId)}
               isReplyAllowed={mode !== ChatType.THREAD}
               isThreadMessage={mode === ChatType.THREAD}
               onReplyClick={handleReplyClick}
