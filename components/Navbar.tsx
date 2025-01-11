@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Menu, Settings, User, MessageSquare } from 'lucide-react'
+import { Menu, User, MessageSquare } from 'lucide-react'
 import { useSidebar } from '@/components/ui/sidebar'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -19,12 +19,10 @@ import { Card } from '@/components/ui/card'
 
 interface NavbarProps {
   onToggleSidebar?: () => void
-  mode: 'chat' | 'settings'
-  onSwitchMode: () => void
   currentChannel: string
 }
 
-export default function Navbar({ mode, onSwitchMode, currentChannel }: NavbarProps) {
+export default function Navbar({ currentChannel }: NavbarProps) {
   const [userInfo, setUserInfo] = useState<{ username: string; email: string } | null>(null)
   const { toggleSidebar } = useSidebar()
   const { logout, isAuthenticated } = useAuth0()
@@ -115,77 +113,72 @@ export default function Navbar({ mode, onSwitchMode, currentChannel }: NavbarPro
         <Menu className="h-5 w-5" />
       </Button>
       <div className="relative flex-1 px-4">
-        {mode === 'chat' && (
-          <div className="max-w-2xl mx-auto" ref={searchContainerRef}>
-            <div className="flex items-center gap-4">
-              <Input
-                type="search"
-                placeholder="Search..."
-                className="w-full"
-                value={searchQuery}
-                onChange={(e) => handleSearchInput(e.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-              />
-              {isSearchFocused && (
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="message-search"
-                      checked={selectedTypes.includes(SearchType.MESSAGE)}
-                      onCheckedChange={() => handleTypeToggle(SearchType.MESSAGE)}
-                    />
-                    <label htmlFor="message-search">Messages</label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="user-search"
-                      checked={selectedTypes.includes(SearchType.USER)}
-                      onCheckedChange={() => handleTypeToggle(SearchType.USER)}
-                    />
-                    <label htmlFor="user-search">Users</label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="file-search"
-                      disabled
-                      checked={selectedTypes.includes(SearchType.FILE)}
-                      onCheckedChange={() => handleTypeToggle(SearchType.FILE)}
-                    />
-                    <label htmlFor="file-search" className="text-muted-foreground">Files</label>
-                  </div>
+        <div className="max-w-2xl mx-auto" ref={searchContainerRef}>
+          <div className="flex items-center gap-4">
+            <Input
+              type="search"
+              placeholder="Search..."
+              className="w-full"
+              value={searchQuery}
+              onChange={(e) => handleSearchInput(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+            />
+            {isSearchFocused && (
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="message-search"
+                    checked={selectedTypes.includes(SearchType.MESSAGE)}
+                    onCheckedChange={() => handleTypeToggle(SearchType.MESSAGE)}
+                  />
+                  <label htmlFor="message-search">Messages</label>
                 </div>
-              )}
-            </div>
-            {searchResults && searchQuery.length >= 3 && (
-              <Card className="absolute w-full mt-2 p-4 z-50 max-h-96 overflow-y-auto">
-                {searchResults.messages.length > 0 && (
-                  <div className="mb-4">
-                    <h3 className="font-semibold mb-2">Messages</h3>
-                    {searchResults.messages.map((result, i) => (
-                      <div key={i} className="p-2 hover:bg-muted rounded-lg">
-                        <p className="text-sm font-medium">{result.user.username}</p>
-                        <p className="text-sm text-muted-foreground">{result.message.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {searchResults.users.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold mb-2">Users</h3>
-                    {searchResults.users.map((user, i) => (
-                      <div key={i} className="p-2 hover:bg-muted rounded-lg">
-                        <p className="text-sm">{user.username}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="user-search"
+                    checked={selectedTypes.includes(SearchType.USER)}
+                    onCheckedChange={() => handleTypeToggle(SearchType.USER)}
+                  />
+                  <label htmlFor="user-search">Users</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="file-search"
+                    disabled
+                    checked={selectedTypes.includes(SearchType.FILE)}
+                    onCheckedChange={() => handleTypeToggle(SearchType.FILE)}
+                  />
+                  <label htmlFor="file-search" className="text-muted-foreground">Files</label>
+                </div>
+              </div>
             )}
           </div>
-        )}
-        {mode === 'settings' && (
-          <h1 className="text-lg font-semibold text-center">User Settings</h1>
-        )}
+          {searchResults && searchQuery.length >= 3 && (
+            <Card className="absolute w-full mt-2 p-4 z-50 max-h-96 overflow-y-auto">
+              {searchResults.messages.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="font-semibold mb-2">Messages</h3>
+                  {searchResults.messages.map((result, i) => (
+                    <div key={i} className="p-2 hover:bg-muted rounded-lg">
+                      <p className="text-sm font-medium">{result.user.username}</p>
+                      <p className="text-sm text-muted-foreground">{result.message.content}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {searchResults.users.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Users</h3>
+                  {searchResults.users.map((user, i) => (
+                    <div key={i} className="p-2 hover:bg-muted rounded-lg">
+                      <p className="text-sm">{user.username}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
+        </div>
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -202,10 +195,6 @@ export default function Navbar({ mode, onSwitchMode, currentChannel }: NavbarPro
               </div>
             </>
           )}
-          <DropdownMenuItem onClick={onSwitchMode}>
-            {mode === 'chat' ? <Settings className="mr-2 h-4 w-4" /> : <MessageSquare className="mr-2 h-4 w-4" />}
-            {mode === 'chat' ? 'Settings' : 'Chat'}
-          </DropdownMenuItem>
           <DropdownMenuItem onClick={handleLogout}>
             <User className="mr-2 h-4 w-4" />
             Logout
