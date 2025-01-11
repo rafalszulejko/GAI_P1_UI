@@ -2,23 +2,33 @@ import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Send, Loader2 } from 'lucide-react'
-import { Message, Chat } from '@/types/chat'
+import { Send, Loader2, X } from 'lucide-react'
+import { Message, Chat, ChatType } from '@/types/chat'
 import { User } from '@/types/user'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getMessagesByChat, sendMessage } from '@/services/messageService'
 import { getChatById, ChatServiceError, updateChat } from '@/services/chatService'
 import { getUserById } from '@/services/userService'
 import { useAuth } from '@/components/providers/auth-provider'
-import ThreadArea from './ThreadArea'
 import { SSEService, ChatEvent } from '@/services/sseService'
+import ChatMessage from './ChatMessage'
 
 interface ChatAreaProps {
   chatId: string
+  mode?: ChatType
+  parentMessage?: Message
   onChatUpdated?: (chat: Chat) => void
+  onThreadClick?: (threadId: string, parentMessage: Message) => void
+  onClose?: () => void
 }
 
-export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
+export default function ChatArea({ 
+  chatId, 
+  mode = ChatType.CHANNEL, 
+  parentMessage,
+  onChatUpdated,
+  onThreadClick,
+  onClose 
+}: ChatAreaProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [chat, setChat] = useState<Chat | null>(null)
@@ -144,27 +154,10 @@ export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
     }
   }
 
-  const handleThreadClick = (threadId: string, message: Message) => {
-    setActiveThreadId(threadId)
-    setThreadParentMessage(message)
-  }
-
   const handleReplyClick = (message: Message) => {
-    setThreadParentMessage(message)
-    setActiveThreadId(message.threadId || '')
-  }
-
-  const handleCloseThread = () => {
-    setActiveThreadId(null)
-    setThreadParentMessage(null)
-  }
-
-  const handleParentMessageUpdate = (updatedMessage: Message) => {
-    setMessages(prev => prev.map(msg => 
-      msg.id === updatedMessage.id ? updatedMessage : msg
-    ))
-    setThreadParentMessage(updatedMessage)
-    setActiveThreadId(updatedMessage.threadId)
+    if (onThreadClick) {
+      onThreadClick(message.threadId || '', message)
+    }
   }
 
   const handleStartEdit = () => {
@@ -218,11 +211,11 @@ export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
   }
 
   return (
-    <div className="flex h-full">
-      <div className="flex flex-col flex-1">
-        <div className="border-b p-4">
+    <div className="flex flex-col h-full">
+      <div className="border-b p-4">
+        <div className="flex justify-between items-center">
           {isEditing ? (
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1">
               <div className="flex gap-2">
                 <Input
                   value={editedName}
@@ -243,88 +236,61 @@ export default function ChatArea({ chatId, onChatUpdated }: ChatAreaProps) {
               />
             </div>
           ) : (
-            <div className="cursor-pointer" onClick={handleStartEdit}>
+            <div className="cursor-pointer flex-1" onClick={handleStartEdit}>
               <h2 className="font-semibold">{chat.name}</h2>
               {chat.description && (
                 <p className="text-sm text-gray-500">{chat.description}</p>
               )}
             </div>
           )}
-        </div>
-
-        <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-          <div className="space-y-4">
-            {messages.map((message) => {
-              const user = users.get(message.senderId)
-              const isOnline = onlineUsers.includes(message.senderId)
-              return (
-                <div 
-                  key={message.id} 
-                  className="flex items-start gap-3 p-4 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg group"
-                >
-                  <Avatar>
-                    {user?.avatarUrl && <AvatarImage src={user.avatarUrl} />}
-                    <AvatarFallback>{user?.username?.[0] ?? message.senderId[0]}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="font-medium">
-                      {user?.username ?? message.senderId}
-                      {isOnline && <span className="ml-2 text-green-500">(online)</span>}
-                    </div>
-                    <div className="text-sm">{message.content}</div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(message.sentAt).toLocaleString()}
-                    </div>
-                    {message.threadId && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="mt-2 text-gray-500"
-                        onClick={() => handleThreadClick(message.threadId!, message)}
-                      >
-                        Thread
-                      </Button>
-                    )}
-                  </div>
-                  <Button 
-                    variant="secondary" 
-                    size="sm" 
-                    className="opacity-0 group-hover:opacity-100"
-                    onClick={() => handleReplyClick(message)}
-                  >
-                    Reply
-                  </Button>
-                </div>
-              )
-            })}
-          </div>
-        </ScrollArea>
-
-        <form onSubmit={handleSendMessage} className="border-t p-4 bg-background">
-          <div className="flex gap-2">
-            <Input
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type a message..."
-              className="flex-1"
-            />
-            <Button type="submit" disabled={!newMessage.trim()}>
-              <Send className="h-4 w-4" />
+          {onClose && (
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
             </Button>
-          </div>
-        </form>
+          )}
+        </div>
+        {mode === ChatType.THREAD && parentMessage && (
+          <ChatMessage
+            message={parentMessage}
+            user={users.get(parentMessage.senderId)}
+            isOnline={onlineUsers.includes(parentMessage.senderId)}
+            isReplyAllowed={false}
+            isThreadMessage={true}
+            className="mt-4 bg-muted/50"
+          />
+        )}
       </div>
 
-      {threadParentMessage && (
-        <div className="w-96 border-l bg-background">
-          <ThreadArea 
-            threadId={activeThreadId}
-            parentMessage={threadParentMessage}
-            onClose={handleCloseThread}
-            onParentUpdate={handleParentMessageUpdate}
-          />
+      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+        <div className="space-y-4">
+          {messages.map((message) => (
+            <ChatMessage
+              key={message.id}
+              message={message}
+              user={users.get(message.senderId)}
+              isOnline={onlineUsers.includes(message.senderId)}
+              isReplyAllowed={mode !== ChatType.THREAD}
+              isThreadMessage={mode === ChatType.THREAD}
+              onReplyClick={handleReplyClick}
+              onThreadClick={handleReplyClick}
+            />
+          ))}
         </div>
-      )}
+      </ScrollArea>
+
+      <form onSubmit={handleSendMessage} className="border-t p-4 bg-background">
+        <div className="flex gap-2">
+          <Input
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder={mode === ChatType.THREAD ? "Reply in thread..." : "Type a message..."}
+            className="flex-1"
+          />
+          <Button type="submit" disabled={!newMessage.trim()}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      </form>
     </div>
   )
 }

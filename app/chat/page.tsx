@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getUserChats } from '@/services/chatMemberService';
 import { getChatById } from '@/services/chatService';
-import { Chat, ChatMember } from '@/types/chat';
+import { Chat, ChatMember, ChatType, Message } from '@/types/chat';
 import ChatList from '@/components/ChatList';
 import ChatArea from '@/components/ChatArea';
 import { RequireAuth } from '@/components/auth/RequireAuth';
@@ -14,6 +14,10 @@ export default function ChatPage() {
   const [chatMembers, setChatMembers] = useState<ChatMember[]>([]);
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | undefined>();
+  const [activeThread, setActiveThread] = useState<{
+    threadId: string;
+    parentMessage: Message;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { getToken, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { state: sidebarState } = useSidebar();
@@ -58,6 +62,8 @@ export default function ChatPage() {
 
   const handleSelectChat = (chatId: string) => {
     setSelectedChatId(chatId);
+    // Close thread when switching chats
+    setActiveThread(null);
   };
 
   const handleAddChat = async (chat: Chat) => {
@@ -69,6 +75,14 @@ export default function ChatPage() {
     setChats(prevChats => prevChats.map(chat => 
       chat.id === updatedChat.id ? updatedChat : chat
     ));
+  };
+
+  const handleThreadClick = (threadId: string, parentMessage: Message) => {
+    setActiveThread({ threadId, parentMessage });
+  };
+
+  const handleCloseThread = () => {
+    setActiveThread(null);
   };
 
   if (isAuthLoading) {
@@ -91,12 +105,28 @@ export default function ChatPage() {
             onChatCreated={handleAddChat}
           />
         )}
-        <div className="flex-1">
+        <div className={`flex-1 flex ${activeThread ? 'gap-0.5' : ''}`}>
           {selectedChatId ? (
-            <ChatArea
-              chatId={selectedChatId}
-              onChatUpdated={handleChatUpdate}
-            />
+            <>
+              <div className={activeThread ? 'flex-1' : 'w-full'}>
+                <ChatArea
+                  chatId={selectedChatId}
+                  mode={ChatType.CHANNEL}
+                  onChatUpdated={handleChatUpdate}
+                  onThreadClick={handleThreadClick}
+                />
+              </div>
+              {activeThread && (
+                <div className="w-96 border-l bg-background">
+                  <ChatArea
+                    chatId={activeThread.threadId}
+                    mode={ChatType.THREAD}
+                    parentMessage={activeThread.parentMessage}
+                    onClose={handleCloseThread}
+                  />
+                </div>
+              )}
+            </>
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="text-muted-foreground">Select a chat to get started</div>
