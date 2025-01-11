@@ -81,6 +81,15 @@ export default function ChatPage() {
     setActiveThread({ threadId, parentMessage });
   };
 
+  const handleParentMessageUpdate = (updatedMessage: Message) => {
+    // Update the thread with the new threadId
+    setActiveThread(prev => prev ? {
+      ...prev,
+      threadId: updatedMessage.threadId || '',
+      parentMessage: updatedMessage
+    } : null);
+  };
+
   const handleCloseThread = () => {
     setActiveThread(null);
   };
@@ -123,6 +132,7 @@ export default function ChatPage() {
                     mode={ChatType.THREAD}
                     parentMessage={activeThread.parentMessage}
                     onClose={handleCloseThread}
+                    onParentUpdate={handleParentMessageUpdate}
                   />
                 </div>
               )}
