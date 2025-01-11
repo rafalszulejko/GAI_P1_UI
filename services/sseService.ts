@@ -7,7 +7,7 @@ const ONLINE_USERS_ENDPOINT = `${API_BASE}/users/online`;
 const SUBSCRIBE_ENDPOINT = (chatId: string) => `${API_BASE}/chats/${chatId}/subscribe`;
 
 export interface ChatEvent {
-  type: 'NEW_MESSAGE' | 'ONLINE_USERS' | 'PRESENCE_UPDATE';
+  type: 'NEW_MESSAGE' | 'ONLINE_USERS' | 'PRESENCE_UPDATE' | 'CONNECTED' | 'HEARTBEAT';
   data: any;
 }
 
@@ -45,14 +45,22 @@ export class SSEService {
       const parser = createParser({
         onEvent: (event) => {
           try {
+            let parsedData = event.data;
+            try {
+              parsedData = JSON.parse(event.data);
+            } catch {
+              // If JSON parsing fails, use the raw string data
+            }
+            
             const chatEvent: ChatEvent = {
               type: event.event as ChatEvent['type'],
-              data: JSON.parse(event.data)
+              data: parsedData
             };
             console.log('Received SSE event:', chatEvent);
             onEvent(chatEvent);
           } catch (error) {
             console.error('Failed to parse event data:', error);
+            console.error('Event data:', event);
           }
         }
       });
