@@ -4,6 +4,11 @@ export enum ChatType {
   THREAD = 'THREAD'
 }
 
+export interface Attachment {
+  key: string;
+  filename: string;
+}
+
 export interface Message {
   id: string;
   chatId: string;
@@ -11,6 +16,7 @@ export interface Message {
   content: string;
   sentAt: Date;
   threadId: string | null;
+  attachments?: Attachment[] | null;
 }
 
 export interface Chat {

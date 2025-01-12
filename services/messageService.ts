@@ -1,4 +1,4 @@
-import { Message } from '@/types/chat'
+import { Message, Attachment } from '@/types/chat'
 import { API_BASE } from '@/config/api'
 import { logRequest } from '@/utils/apiLogger'
 import { getAuthHeaders } from '@/utils/auth'
@@ -73,5 +73,57 @@ export async function updateMessage(messageId: string, message: Partial<Message>
   }
 
   return response.json();
+}
+
+export async function uploadAttachment(messageId: string, file: File): Promise<Attachment> {
+  const headers = await getAuthHeaders();
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const url = `${MESSAGES_ENDPOINT}/${messageId}/attachments`;
+  
+  // Remove Content-Type from headers for multipart form data
+  const { 'Content-Type': removed, ...headersWithoutContentType } = headers;
+  
+  const response = await logRequest(
+    {
+      method: 'POST',
+      url,
+      headers,
+      body: formData
+    },
+    () => fetch(url, {
+      method: 'POST',
+      headers: headersWithoutContentType,
+      body: formData
+    })
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to upload attachment');
+  }
+
+  return response.json();
+}
+
+export async function downloadAttachment(messageId: string, key: string): Promise<Blob> {
+  const headers = await getAuthHeaders();
+  const url = `${MESSAGES_ENDPOINT}/${messageId}/attachments/${key}`;
+  
+  const response = await logRequest(
+    {
+      url,
+      headers
+    },
+    () => fetch(url, {
+      headers
+    })
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to download attachment');
+  }
+
+  return response.blob();
 }
 

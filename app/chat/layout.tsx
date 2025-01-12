@@ -22,8 +22,6 @@ export default function ChatLayout({
         <div className="flex flex-col h-screen w-full">
           <Navbar 
             onToggleSidebar={() => {}}
-            mode={mode}
-            onSwitchMode={handleSwitchMode}
             currentChannel=""
           />
           <div className="flex-1 overflow-hidden w-full">
