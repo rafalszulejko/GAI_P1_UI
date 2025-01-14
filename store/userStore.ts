@@ -1,10 +1,9 @@
 import { create } from 'zustand'
 import { User } from '@/types/user'
-import { getCurrentUser, getUserById } from '@/services/userService'
+import { getUserById } from '@/services/userService'
 import { SSEService } from '@/services/sseService'
 
 interface UserState {
-  currentUser: User | null
   users: Map<string, User>
   sseService: SSEService
   isInitialized: boolean
@@ -19,7 +18,6 @@ interface UserState {
 const sseService = new SSEService()
 
 export const useUserStore = create<UserState>((set, get) => ({
-  currentUser: null,
   users: new Map(),
   sseService,
   isInitialized: false,
@@ -28,14 +26,13 @@ export const useUserStore = create<UserState>((set, get) => ({
     if (get().isInitialized) return
 
     try {
-      const currentUser = await getCurrentUser()
-      set({ currentUser, isInitialized: true })
-
       // Get initial online users
       const onlineUsers = await sseService.getOnlineUsers()
       onlineUsers.forEach(userId => {
         get().updateUserOnlineStatus(userId, true)
       })
+      
+      set({ isInitialized: true })
     } catch (error) {
       console.error('Failed to initialize user store:', error)
       set({ isInitialized: true }) // Mark as initialized even on error to prevent retries
@@ -71,26 +68,12 @@ export const useUserStore = create<UserState>((set, get) => ({
         })
       }
 
-      // Also update currentUser if it's the same user
-      const currentUser = state.currentUser
-      if (currentUser?.id === userId) {
-        return {
-          users,
-          currentUser: {
-            ...currentUser,
-            isOnline,
-            lastActive: isOnline ? new Date() : currentUser.lastActive
-          }
-        }
-      }
-
       return { users }
     })
   },
 
   cleanup: () => {
     set({
-      currentUser: null,
       users: new Map(),
       isInitialized: false
     })

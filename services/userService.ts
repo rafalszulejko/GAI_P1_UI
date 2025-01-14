@@ -1,12 +1,12 @@
 import { User } from '@/types/user'
 import { API_BASE } from '@/config/api'
 import { logRequest } from '@/utils/apiLogger'
-import { getAuthHeaders } from '@/utils/auth'
+import { useAuthStore } from '@/store/authStore'
 
 const USERS_ENDPOINT = `${API_BASE}/users`
 
 export const getCurrentUser = async (): Promise<User> => {
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const response = await logRequest(
     {
       url: `${USERS_ENDPOINT}/me`,
@@ -25,7 +25,7 @@ export const getCurrentUser = async (): Promise<User> => {
 };
 
 export const getUserById = async (username: string): Promise<User> => {
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const response = await logRequest(
     {
       url: `${USERS_ENDPOINT}/${username}`,

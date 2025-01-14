@@ -6,6 +6,14 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+
+# Build the application
+# Environment variables must be provided during build
+ARG NEXT_PUBLIC_AUTH0_DOMAIN
+ARG NEXT_PUBLIC_AUTH0_CLIENT_ID
+ARG NEXT_PUBLIC_AUTH0_AUDIENCE
+ARG NEXT_PUBLIC_API_BASE
+
 RUN npm run build
 
 FROM node:18-alpine AS runner

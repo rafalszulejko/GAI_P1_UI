@@ -10,9 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { clearAuthToken } from '@/utils/auth'
-import { useAuth0 } from '@auth0/auth0-react'
-import { getCurrentUser } from '@/services/userService'
+import { useAuth } from '@/components/providers/auth-provider'
 import { searchContent } from '@/services/searchService'
 import { SearchType, SearchResults } from '@/types/search'
 import { Card } from '@/components/ui/card'
@@ -23,9 +21,8 @@ interface NavbarProps {
 }
 
 export default function Navbar({ currentChannel }: NavbarProps) {
-  const [userInfo, setUserInfo] = useState<{ username: string; email: string } | null>(null)
   const { toggleSidebar } = useSidebar()
-  const { logout, isAuthenticated } = useAuth0()
+  const { logout, isAuthenticated, user } = useAuth()
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null)
@@ -48,29 +45,13 @@ export default function Navbar({ currentChannel }: NavbarProps) {
     };
   }, []);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      if (isAuthenticated) {
-        try {
-          const user = await getCurrentUser()
-          setUserInfo({ username: user.username, email: user.email })
-        } catch (error) {
-          console.error('Error fetching user:', error)
-        }
-      }
+  const handleLogout = async () => {
+    try {
+      await logout()
+    } catch (error) {
+      console.error('Failed to logout:', error)
     }
-    fetchUser()
-  }, [isAuthenticated])
-
-  const handleLogout = () => {
-    clearAuthToken();
-    logout({ 
-      logoutParams: {
-        returnTo: window.location.origin,
-        client_id: process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID
-      }
-    });
-  };
+  }
 
   const handleSearch = async (query: string) => {
     if (query.length < 3) {
@@ -187,11 +168,11 @@ export default function Navbar({ currentChannel }: NavbarProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {userInfo && (
+          {user && (
             <>
               <div className="px-2 py-1.5 border-b">
-                <p className="text-sm font-medium">{userInfo.username}</p>
-                <p className="text-xs text-muted-foreground">{userInfo.email}</p>
+                <p className="text-sm font-medium">{user.username}</p>
+                <p className="text-xs text-muted-foreground">{user.email}</p>
               </div>
             </>
           )}

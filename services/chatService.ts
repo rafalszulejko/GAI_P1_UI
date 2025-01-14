@@ -1,9 +1,9 @@
 import { Chat, ChatType } from '@/types/chat';
 import { API_BASE } from '@/config/api';
-import { getAuthHeaders } from '@/utils/auth';
+import { CHATS_ENDPOINT } from '@/config/api';
+import { useAuthStore } from '@/store/authStore';
 import { logRequest } from '@/utils/apiLogger';
 
-const CHATS_ENDPOINT = `${API_BASE}/chats`;
 
 export class ChatServiceError extends Error {
   constructor(message: string) {
@@ -13,7 +13,7 @@ export class ChatServiceError extends Error {
 }
 
 export async function getAllChats(): Promise<Chat[]> {
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const response = await logRequest(
     {
       url: CHATS_ENDPOINT,
@@ -32,7 +32,7 @@ export async function getAllChats(): Promise<Chat[]> {
 }
 
 export async function getChatById(chatId: string): Promise<Chat> {
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const response = await logRequest(
     {
       url: `${CHATS_ENDPOINT}/${chatId}`,
@@ -51,7 +51,7 @@ export async function getChatById(chatId: string): Promise<Chat> {
 }
 
 export async function createChat(chat: Chat): Promise<Chat> {
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const response = await logRequest(
     {
       method: 'POST',
@@ -74,7 +74,7 @@ export async function createChat(chat: Chat): Promise<Chat> {
 }
 
 export async function updateChat(chatId: string, chat: Partial<Chat>): Promise<Chat> {
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const response = await logRequest(
     {
       method: 'PUT',

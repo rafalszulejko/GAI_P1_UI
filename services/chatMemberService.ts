@@ -1,6 +1,6 @@
 import { ChatMember } from '@/types/chat';
 import { API_BASE } from '@/config/api';
-import { getAuthHeaders } from '@/utils/auth';
+import { useAuthStore } from '@/store/authStore';
 import { logRequest } from '@/utils/apiLogger';
 
 const CHAT_MEMBERS_ENDPOINT = `${API_BASE}/chat_members`;
@@ -13,7 +13,7 @@ export class ChatMemberServiceError extends Error {
 }
 
 export async function addChatMember(chatId: string, userId: string): Promise<ChatMember> {
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const response = await logRequest(
     {
       method: 'POST',
@@ -50,7 +50,7 @@ export async function addChatMember(chatId: string, userId: string): Promise<Cha
 }
 
 export async function getUserChats(): Promise<ChatMember[]> {
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const response = await logRequest(
     {
       url: CHAT_MEMBERS_ENDPOINT,
@@ -69,7 +69,7 @@ export async function getUserChats(): Promise<ChatMember[]> {
 }
 
 export async function getChatMembers(chatId: string): Promise<ChatMember[]> {
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const response = await logRequest(
     {
       url: `${CHAT_MEMBERS_ENDPOINT}/${chatId}`,

@@ -1,4 +1,4 @@
-import { getAuthHeaders } from '@/utils/auth';
+import { useAuthStore } from '@/store/authStore';
 import { API_BASE } from '@/config/api';
 import { createParser } from 'eventsource-parser';
 
@@ -20,7 +20,7 @@ export class SSEService {
   async subscribeToChatUpdates(chatId: string, onEvent: (event: ChatEvent) => void) {
     await this.cleanup();
 
-    const headers = await getAuthHeaders();
+    const headers = await useAuthStore.getState().getAuthHeaders();
     const abortController = new AbortController();
     this.abortController = abortController;
     this.isActive = true;
@@ -105,7 +105,7 @@ export class SSEService {
       }
 
       try {
-        const headers = await getAuthHeaders();
+        const headers = await useAuthStore.getState().getAuthHeaders();
         await fetch(HEARTBEAT_ENDPOINT, {
           method: 'POST',
           headers,
@@ -148,7 +148,7 @@ export class SSEService {
   }
 
   async getOnlineUsers(): Promise<string[]> {
-    const headers = await getAuthHeaders();
+    const headers = await useAuthStore.getState().getAuthHeaders();
     const response = await fetch(ONLINE_USERS_ENDPOINT, {
       headers
     });

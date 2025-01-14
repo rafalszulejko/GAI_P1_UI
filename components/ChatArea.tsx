@@ -37,7 +37,7 @@ export default function ChatArea({
   const [error, setError] = useState<string | null>(null)
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const [threadParentMessage, setThreadParentMessage] = useState<Message | null>(null)
-  const { getToken } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [editedName, setEditedName] = useState('')
   const [editedDescription, setEditedDescription] = useState('')
@@ -63,6 +63,7 @@ export default function ChatArea({
     const fetchData = async () => {
       if (!mounted) return
       
+      console.log('ChatArea: Starting data fetch, authenticated:', isAuthenticated)
       setIsLoading(true)
       setError(null)
 
@@ -75,32 +76,46 @@ export default function ChatArea({
           return
         }
 
+        console.log('ChatArea: Fetching chat and messages for chatId:', chatId)
         const [chatData, messagesData] = await Promise.all([
-          getChatById(chatId),
-          getMessagesByChat(chatId)
+          getChatById(chatId).catch(error => {
+            console.error('Failed to fetch chat:', error)
+            throw error
+          }),
+          getMessagesByChat(chatId).catch(error => {
+            console.error('Failed to fetch messages:', error)
+            throw error
+          })
         ])
 
+        console.log('ChatArea: Received chat data:', chatData)
+        console.log('ChatArea: Received messages:', messagesData)
+
         if (mounted) {
+          // Update state with fetched data immediately
           setChat(chatData)
           setMessages(messagesData)
+          setIsLoading(false)
 
-          // Subscribe to SSE events only for existing chats
-          await sseService.current.subscribeToChatUpdates(chatId, (event: ChatEvent) => {
-            console.log('Processing event in ChatArea:', event); // Debug log
+          // Set up SSE subscription in the background
+          console.log('ChatArea: Setting up SSE subscription')
+          sseService.current.subscribeToChatUpdates(chatId, (event: ChatEvent) => {
+            console.log('Processing event in ChatArea:', event)
             if (event.type === 'NEW_MESSAGE') {
-              setMessages(prev => [...prev, event.data]);
+              setMessages(prev => [...prev, event.data])
             }
-          });
+          }).catch(error => {
+            console.error('Failed to set up SSE subscription:', error)
+            // Don't throw - SSE failure shouldn't prevent message display
+          })
         }
       } catch (error) {
+        console.error('ChatArea: Error during data fetch:', error)
         if (mounted) {
           const message = error instanceof ChatServiceError 
             ? error.message 
             : 'Failed to load chat'
           setError(message)
-        }
-      } finally {
-        if (mounted) {
           setIsLoading(false)
         }
       }
@@ -114,7 +129,7 @@ export default function ChatArea({
       mounted = false
       sseService.current.cleanup()
     }
-  }, [chatId])
+  }, [chatId, isAuthenticated])
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()

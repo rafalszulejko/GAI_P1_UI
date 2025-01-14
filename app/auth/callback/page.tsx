@@ -2,32 +2,26 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useAuth } from '@/components/providers/auth-provider';
 
 export default function CallbackPage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
-    const handleCallback = async () => {
-      if (!isLoading) {
-        try {
-          if (isAuthenticated) {
-            // Explicitly get the token before redirecting
-            await getAccessTokenSilently();
-            router.push('/chat');
-          } else {
-            router.push('/');
-          }
-        } catch (error) {
-          console.error('Error during callback:', error);
-          router.push('/');
-        }
+    console.log('Callback page - Loading:', isLoading, 'Authenticated:', isAuthenticated)
+    
+    // Once loading is complete, redirect based on auth state
+    if (!isLoading) {
+      if (isAuthenticated) {
+        console.log('Callback page - Authenticated, redirecting to /chat')
+        router.push('/chat')
+      } else {
+        console.log('Callback page - Not authenticated, redirecting to /')
+        router.push('/')
       }
-    };
-
-    handleCallback();
-  }, [isLoading, isAuthenticated, getAccessTokenSilently, router]);
+    }
+  }, [isLoading, isAuthenticated, router]);
 
   return (
     <div className="flex h-screen items-center justify-center">

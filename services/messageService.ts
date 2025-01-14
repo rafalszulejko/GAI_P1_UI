@@ -1,30 +1,46 @@
 import { Message, Attachment } from '@/types/chat'
 import { API_BASE } from '@/config/api'
 import { logRequest } from '@/utils/apiLogger'
-import { getAuthHeaders } from '@/utils/auth'
-
-const MESSAGES_ENDPOINT = `${API_BASE}/messages`
+import { MESSAGES_ENDPOINT } from '@/config/api'
+import { useAuthStore } from '@/store/authStore'
 
 export const getMessagesByChat = async (chatId: string): Promise<Message[]> => {
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const url = `${MESSAGES_ENDPOINT}/chat/${chatId}`;
-  const response = await logRequest(
-    {
-      url,
-      headers
-    },
-    () => fetch(url, {
-      headers
-    })
-  );
-  if (!response.ok) {
-    throw new Error('Failed to fetch messages');
+  console.log('MessageService: Fetching messages for chat:', chatId);
+  
+  try {
+    const response = await logRequest(
+      {
+        url,
+        headers
+      },
+      () => fetch(url, {
+        headers
+      })
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('MessageService: Failed to fetch messages:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorText
+      });
+      throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`);
+    }
+
+    const messages = await response.json();
+    console.log('MessageService: Successfully fetched messages:', messages.length);
+    return messages;
+  } catch (error) {
+    console.error('MessageService: Error fetching messages:', error);
+    throw error;
   }
-  return response.json();
 };
 
 export const sendMessage = async (chatId: string, content: string): Promise<Message> => {
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const message: Partial<Message> = {
     chatId,
     content,
@@ -51,7 +67,7 @@ export const sendMessage = async (chatId: string, content: string): Promise<Mess
 };
 
 export async function updateMessage(messageId: string, message: Partial<Message>): Promise<Message> {
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const url = `${MESSAGES_ENDPOINT}/${messageId}`;
   
   const response = await logRequest(
@@ -76,7 +92,7 @@ export async function updateMessage(messageId: string, message: Partial<Message>
 }
 
 export async function uploadAttachment(messageId: string, file: File): Promise<Attachment> {
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const formData = new FormData();
   formData.append('file', file);
 
@@ -107,7 +123,7 @@ export async function uploadAttachment(messageId: string, file: File): Promise<A
 }
 
 export async function downloadAttachment(messageId: string, key: string): Promise<Blob> {
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const url = `${MESSAGES_ENDPOINT}/${messageId}/attachments/${key}`;
   
   const response = await logRequest(

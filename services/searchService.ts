@@ -1,9 +1,10 @@
 import { SearchQuery, SearchResults, SearchType } from '@/types/search';
 import { API_BASE } from '@/config/api';
-import { getAuthHeaders } from '@/utils/auth';
+import { SEARCH_ENDPOINT } from '@/config/api'
+import { useAuthStore } from '@/store/authStore'
 import { logRequest } from '@/utils/apiLogger';
 
-const SEARCH_ENDPOINT = `${API_BASE}/search`;
+
 
 export const searchContent = async (
   queryString: string,
@@ -14,7 +15,7 @@ export const searchContent = async (
     searchTypes,
   };
 
-  const headers = await getAuthHeaders();
+  const headers = await useAuthStore.getState().getAuthHeaders();
   const response = await logRequest(
     {
       method: 'POST',
