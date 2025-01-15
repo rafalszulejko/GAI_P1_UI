@@ -26,7 +26,6 @@ export default function Navbar({ currentChannel }: NavbarProps) {
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null)
-  const [selectedTypes, setSelectedTypes] = useState<SearchType[]>([SearchType.MESSAGE, SearchType.USER])
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
@@ -60,7 +59,7 @@ export default function Navbar({ currentChannel }: NavbarProps) {
     }
 
     try {
-      const results = await searchContent(query, selectedTypes)
+      const results = await searchContent(query, [SearchType.MESSAGE, SearchType.USER, SearchType.FILE, SearchType.AI])
       setSearchResults(results)
     } catch (error) {
       console.error('Search failed:', error)
@@ -75,19 +74,6 @@ export default function Navbar({ currentChannel }: NavbarProps) {
     searchTimeout.current = setTimeout(() => handleSearch(value), 300)
   }
 
-  const handleTypeToggle = (type: SearchType) => {
-    setSelectedTypes(prev => {
-      if (prev.includes(type)) {
-        return prev.filter(t => t !== type);
-      } else {
-        return [...prev, type];
-      }
-    });
-    if (searchQuery.length >= 3) {
-      handleSearch(searchQuery);
-    }
-  }
-
   return (
     <nav className="flex items-center justify-between border-b px-4 py-2 bg-muted">
       <Button variant="ghost" size="icon" onClick={toggleSidebar}>
@@ -98,41 +84,12 @@ export default function Navbar({ currentChannel }: NavbarProps) {
           <div className="flex items-center gap-4">
             <Input
               type="search"
-              placeholder="Search..."
+              placeholder="Search... (add space at the end for AI search)"
               className="w-full"
               value={searchQuery}
               onChange={(e) => handleSearchInput(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}
             />
-            {isSearchFocused && (
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="message-search"
-                    checked={selectedTypes.includes(SearchType.MESSAGE)}
-                    onCheckedChange={() => handleTypeToggle(SearchType.MESSAGE)}
-                  />
-                  <label htmlFor="message-search">Messages</label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="user-search"
-                    checked={selectedTypes.includes(SearchType.USER)}
-                    onCheckedChange={() => handleTypeToggle(SearchType.USER)}
-                  />
-                  <label htmlFor="user-search">Users</label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="file-search"
-                    disabled
-                    checked={selectedTypes.includes(SearchType.FILE)}
-                    onCheckedChange={() => handleTypeToggle(SearchType.FILE)}
-                  />
-                  <label htmlFor="file-search" className="text-muted-foreground">Files</label>
-                </div>
-              </div>
-            )}
           </div>
           {searchResults && searchQuery.length >= 3 && (
             <Card className="absolute w-full mt-2 p-4 z-50 max-h-96 overflow-y-auto">
@@ -148,13 +105,29 @@ export default function Navbar({ currentChannel }: NavbarProps) {
                 </div>
               )}
               {searchResults.users.length > 0 && (
-                <div>
+                <div className="mb-4">
                   <h3 className="font-semibold mb-2">Users</h3>
                   {searchResults.users.map((user, i) => (
                     <div key={i} className="p-2 hover:bg-muted rounded-lg">
                       <p className="text-sm">{user.username}</p>
                     </div>
                   ))}
+                </div>
+              )}
+              {searchResults.ai && (
+                <div>
+                  <h3 className="font-semibold mb-2">AI Search</h3>
+                  <p className="text-sm font-bold mb-2">{searchResults.ai.summary}</p>
+                  {searchResults.ai.messages.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">AI-found related messages:</h4>
+                      {searchResults.ai.messages.map((message, i) => (
+                        <div key={i} className="p-2 hover:bg-muted rounded-lg">
+                          <p className="text-sm text-muted-foreground">{message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </Card>

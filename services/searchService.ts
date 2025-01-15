@@ -10,9 +10,18 @@ export const searchContent = async (
   queryString: string,
   searchTypes: SearchType[]
 ): Promise<SearchResults> => {
+  // Check if AI search is requested and handle trailing space
+  const hasTrailingSpace = queryString.endsWith(' ');
+  const cleanQuery = queryString.trim();
+  
+  // Remove AI from searchTypes if no trailing space
+  const effectiveSearchTypes = hasTrailingSpace 
+    ? searchTypes 
+    : searchTypes.filter(type => type !== SearchType.AI);
+
   const searchQuery: SearchQuery = {
-    queryString,
-    searchTypes,
+    queryString: cleanQuery,
+    searchTypes: effectiveSearchTypes,
   };
 
   const headers = await useAuthStore.getState().getAuthHeaders();
