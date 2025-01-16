@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Send, Loader2, X } from 'lucide-react'
-import { Message, Chat, ChatType } from '@/types/chat'
+import { Message, Chat, ChatType, CreateChatCommand } from '@/types/chat'
 import { User } from '@/types/user'
 import { getMessagesByChat, sendMessage, updateMessage } from '@/services/messageService'
 import { getChatById, ChatServiceError, updateChat, createChat } from '@/services/chatService'
@@ -140,13 +140,13 @@ export default function ChatArea({
       let actualChatId = chatId
       if (mode === ChatType.THREAD && chatId === '' && parentMessage) {
         // Create a new thread chat
-        const threadChat = await createChat({
-          id: '', // Will be assigned by the server
+        const command: CreateChatCommand = {
           name: 'Thread',
           description: '',
           type: ChatType.THREAD,
-          lastMessageAt: new Date()
-        })
+          members: []
+        }
+        const threadChat = await createChat(command)
         
         actualChatId = threadChat.id
         

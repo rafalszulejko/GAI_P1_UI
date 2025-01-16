@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { sendMessage } from '@/services/messageService'
+import { CreateChatCommand } from '@/types/chat'
 
 interface ChatListProps {
   onSelectChat: (chatId: string) => void
@@ -157,13 +158,13 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
     if (!isAuthenticated) return
     
     try {
-      const newChat: Partial<Chat> = {
+      const command: CreateChatCommand = {
         name: newChannelName || 'New Chat',
         description: newChannelDescription || 'New chat description',
         type: type,
-        lastMessageAt: new Date()
+        members: []
       }
-      const chat = await createChat(newChat as Chat)
+      const chat = await createChat(command)
       onSelectChat(chat.id)
       if (onChatCreated) {
         onChatCreated(chat)
@@ -185,14 +186,13 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
 
     try {
       // Create new chat
-      const newChat = await createChat({
+      const command: CreateChatCommand = {
         name: `${currentUser.username}-${selectedUser.name} DM`,
+        description: '',
         type: ChatType.DIRECT,
-        lastMessageAt: new Date()
-      } as Chat)
-
-      // Add recipient to chat
-      await addChatMember(newChat.id, selectedUser.id)
+        members: [selectedUser.id]
+      }
+      const newChat = await createChat(command)
 
       // Send the initial message
       await sendMessage(newChat.id, messageText)

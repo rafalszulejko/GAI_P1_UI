@@ -1,7 +1,15 @@
 export enum ChatType {
   DIRECT = 'DIRECT',
   CHANNEL = 'CHANNEL',
-  THREAD = 'THREAD'
+  THREAD = 'THREAD',
+  AI = 'AI'
+}
+
+export interface CreateChatCommand {
+  name: string;
+  description: string;
+  type: ChatType;
+  members: string[];
 }
 
 export interface Attachment {

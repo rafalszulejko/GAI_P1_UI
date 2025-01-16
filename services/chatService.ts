@@ -1,4 +1,4 @@
-import { Chat, ChatType } from '@/types/chat';
+import { Chat, ChatType, CreateChatCommand } from '@/types/chat';
 import { API_BASE } from '@/config/api';
 import { CHATS_ENDPOINT } from '@/config/api';
 import { useAuthStore } from '@/store/authStore';
@@ -50,19 +50,19 @@ export async function getChatById(chatId: string): Promise<Chat> {
   return response.json();
 }
 
-export async function createChat(chat: Chat): Promise<Chat> {
+export async function createChat(command: CreateChatCommand): Promise<Chat> {
   const headers = await useAuthStore.getState().getAuthHeaders();
   const response = await logRequest(
     {
       method: 'POST',
       url: CHATS_ENDPOINT,
       headers,
-      body: chat
+      body: command
     },
     () => fetch(CHATS_ENDPOINT, {
       method: 'POST',
       headers,
-      body: JSON.stringify(chat)
+      body: JSON.stringify(command)
     })
   );
 
