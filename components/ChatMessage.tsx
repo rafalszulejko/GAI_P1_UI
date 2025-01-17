@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import { useEffect, useRef } from 'react'
 import { uploadAttachment, downloadAttachment } from '@/services/messageService'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/components/providers/auth-provider'
 
 interface ChatMessageProps {
   message: Message
@@ -30,6 +31,8 @@ export default function ChatMessage({
   const fetchUser = useUserStore(state => state.fetchUser)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+  const { user: loggedUser } = useAuth()
+  const isOwnMessage = loggedUser?.id === message.senderId
 
   // Fetch user if needed
   useEffect(() => {
@@ -113,16 +116,18 @@ export default function ChatMessage({
             ))}
           </div>
         )}
-        {isReplyAllowed && onReplyClick && (
+        {isReplyAllowed && (
           <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-muted-foreground"
-              onClick={() => onReplyClick(message)}
-            >
-              Reply
-            </Button>
+            {!isOwnMessage && onReplyClick && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground"
+                onClick={() => onReplyClick(message)}
+              >
+                Reply
+              </Button>
+            )}
             {!isThreadMessage && message.threadId && onThreadClick && (
               <Button
                 variant="ghost"
@@ -134,15 +139,17 @@ export default function ChatMessage({
                 View Thread
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-muted-foreground"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Paperclip className="w-3 h-3 mr-1" />
-              Attach
-            </Button>
+            {isOwnMessage && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Paperclip className="w-3 h-3 mr-1" />
+                Attach
+              </Button>
+            )}
             <input
               type="file"
               ref={fileInputRef}
