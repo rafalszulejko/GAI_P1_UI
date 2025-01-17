@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { sendMessage } from '@/services/messageService'
 import { CreateChatCommand } from '@/types/chat'
+import { Switch } from '@/components/ui/switch'
 
 interface ChatListProps {
   onSelectChat: (chatId: string) => void
@@ -55,6 +56,7 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
   const [otherUserIds, setOtherUserIds] = useState<Record<string, string>>({})
   const users = useUserStore(state => state.users)
   const fetchUser = useUserStore(state => state.fetchUser)
+  const [isAIChat, setIsAIChat] = useState(false)
 
   useEffect(() => {
     const fetchOtherUserIds = async () => {
@@ -189,7 +191,7 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
       const command: CreateChatCommand = {
         name: `${currentUser.username}-${selectedUser.name} DM`,
         description: '',
-        type: ChatType.DIRECT,
+        type: isAIChat ? ChatType.AI : ChatType.DIRECT,
         members: [selectedUser.id]
       }
       const newChat = await createChat(command)
@@ -207,6 +209,7 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
       setSelectedUser(null)
       setMessageText('')
       setSearchQuery('')
+      setIsAIChat(false)
       setIsNewMessageModalOpen(false)
     } catch (error) {
       const message = error instanceof ChatServiceError 
@@ -490,6 +493,14 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
                 )}
               </div>
             </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="ai-chat"
+                checked={isAIChat}
+                onCheckedChange={setIsAIChat}
+              />
+              <Label htmlFor="ai-chat">Chat with AI avatar</Label>
+            </div>
             <div className="space-y-2">
               <Label>Message</Label>
               <Textarea
@@ -507,6 +518,7 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
                 setSelectedUser(null)
                 setMessageText('')
                 setSearchQuery('')
+                setIsAIChat(false)
               }}
             >
               Cancel
