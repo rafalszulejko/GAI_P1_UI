@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Plus, Loader2, Hash, User as UserIcon, Search, X } from 'lucide-react'
 import { useAuth } from '@/components/providers/auth-provider'
-import { createChat, ChatServiceError, getAllChats } from '@/services/chatService'
+import { createChat, ChatServiceError, getAllChats, getOtherUserId } from '@/services/chatService'
 import { addChatMember, getChatMembers, withoutUser } from '@/services/chatMemberService'
 import { searchContent } from '@/services/searchService'
 import { SearchType } from '@/types/search'
@@ -62,19 +62,15 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
     const fetchOtherUserIds = async () => {
       if (!currentUser) return;
       
-      const directChats = chats.filter(chat => chat.type === ChatType.DIRECT);
+      const directChats = chats.filter(chat => chat.type === ChatType.DIRECT || chat.type === ChatType.AI);
       const newUserIds: Record<string, string> = {};
       
       for (const chat of directChats) {
         try {
-          const members = await getChatMembers(chat.id);
-          const otherMembers = withoutUser(members, currentUser.id);
-          if (otherMembers.length > 0) {
-            const userId = otherMembers[0].userId;
-            newUserIds[chat.id] = userId;
-            // Fetch user data
-            fetchUser(userId);
-          }
+          const userId = await getOtherUserId(chat.id);
+          newUserIds[chat.id] = userId;
+          // Fetch user data
+          fetchUser(userId);
         } catch (error) {
           console.error('Error fetching other user ID for chat:', chat.id, error);
         }
@@ -154,7 +150,7 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
 
   // Filter chats into channels and direct messages
   const channels = chats.filter(chat => chat.type === ChatType.CHANNEL)
-  const directMessages = chats.filter(chat => chat.type === ChatType.DIRECT)
+  const directMessages = chats.filter(chat => chat.type === ChatType.DIRECT || chat.type === ChatType.AI)
 
   const handleCreateChat = async (type: ChatType) => {
     if (!isAuthenticated) return
@@ -303,8 +299,13 @@ export default function ChatList({ onSelectChat, selectedChatId, chats, isLoadin
                             onClick={() => onSelectChat(chat.id)}
                           >
                             <UserIcon className="mr-2 h-4 w-4" />
-                            <span>
+                            <span className="flex items-center gap-2">
                               {otherUser?.username || `Chat ${chat.id}`}
+                              {chat.type === ChatType.AI && (
+                                <span className="bg-primary/20 text-primary text-xs px-1.5 py-0.5 rounded">
+                                  AI
+                                </span>
+                              )}
                             </span>
                           </Button>
                         );

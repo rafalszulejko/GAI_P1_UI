@@ -266,7 +266,14 @@ export default function ChatArea({
             </div>
           ) : (
             <div className="cursor-pointer flex-1" onClick={handleStartEdit}>
-              <h2 className="font-semibold">{chat?.name}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-semibold">{chat?.name}</h2>
+                {chat?.type === ChatType.AI && (
+                  <span className="bg-primary/20 text-primary text-xs px-1.5 py-0.5 rounded">
+                    AI Chat
+                  </span>
+                )}
+              </div>
               {chat?.description && (
                 <p className="text-sm text-gray-500">{chat.description}</p>
               )}

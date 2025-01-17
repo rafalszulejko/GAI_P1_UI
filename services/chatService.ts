@@ -94,4 +94,23 @@ export async function updateChat(chatId: string, chat: Partial<Chat>): Promise<C
   }
 
   return response.json();
+}
+
+export async function getOtherUserId(chatId: string): Promise<string> {
+  const headers = await useAuthStore.getState().getAuthHeaders();
+  const response = await logRequest(
+    {
+      url: `${CHATS_ENDPOINT}/${chatId}/otheruser`,
+      headers
+    },
+    () => fetch(`${CHATS_ENDPOINT}/${chatId}/otheruser`, {
+      headers
+    })
+  );
+
+  if (!response.ok) {
+    throw new ChatServiceError('Failed to fetch other user ID');
+  }
+
+  return response.text();
 } 
