@@ -43,7 +43,8 @@ export default function ChatMessage({
     if (!file) return
 
     try {
-      await uploadAttachment(message.id, file)
+      const attachment = await uploadAttachment(message.id, file)
+      message.attachments = [...(message.attachments || []), attachment]
       toast({
         title: "Success",
         description: "File uploaded successfully"
