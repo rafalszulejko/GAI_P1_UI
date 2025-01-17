@@ -10,6 +10,7 @@ import { getChatById, ChatServiceError, updateChat, createChat } from '@/service
 import { useAuth } from '@/components/providers/auth-provider'
 import { SSEService, ChatEvent } from '@/services/sseService'
 import ChatMessage from './ChatMessage'
+import { Page } from '@/types/pagination'
 
 interface ChatAreaProps {
   chatId: string
@@ -31,6 +32,7 @@ export default function ChatArea({
   onParentUpdate
 }: ChatAreaProps) {
   const [messages, setMessages] = useState<Message[]>([])
+  const [messagePage, setMessagePage] = useState<Page<Message> | null>(null)
   const [newMessage, setNewMessage] = useState('')
   const [chat, setChat] = useState<Chat | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -72,6 +74,7 @@ export default function ChatArea({
         if (mode === ChatType.THREAD && chatId === '') {
           setChat(null)
           setMessages([])
+          setMessagePage(null)
           setIsLoading(false)
           return
         }
@@ -94,7 +97,8 @@ export default function ChatArea({
         if (mounted) {
           // Update state with fetched data immediately
           setChat(chatData)
-          setMessages(messagesData)
+          setMessages(messagesData.content)
+          setMessagePage(messagesData)
           setIsLoading(false)
 
           // Set up SSE subscription in the background

@@ -3,10 +3,11 @@ import { API_BASE } from '@/config/api'
 import { logRequest } from '@/utils/apiLogger'
 import { MESSAGES_ENDPOINT } from '@/config/api'
 import { useAuthStore } from '@/store/authStore'
+import { Page, Pageable } from '@/types/pagination'
 
-export const getMessagesByChat = async (chatId: string): Promise<Message[]> => {
+export const getMessagesByChat = async (chatId: string, pageable: Pageable = { pageNumber: 0, pageSize: 25 }): Promise<Page<Message>> => {
   const headers = await useAuthStore.getState().getAuthHeaders();
-  const url = `${MESSAGES_ENDPOINT}/chat/${chatId}`;
+  const url = `${MESSAGES_ENDPOINT}/chat/${chatId}?page=${pageable.pageNumber}&size=${pageable.pageSize}`;
   console.log('MessageService: Fetching messages for chat:', chatId);
   
   try {
@@ -30,9 +31,9 @@ export const getMessagesByChat = async (chatId: string): Promise<Message[]> => {
       throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`);
     }
 
-    const messages = await response.json();
-    console.log('MessageService: Successfully fetched messages:', messages.length);
-    return messages;
+    const page = await response.json();
+    console.log('MessageService: Successfully fetched messages:', page.content.length);
+    return page;
   } catch (error) {
     console.error('MessageService: Error fetching messages:', error);
     throw error;
