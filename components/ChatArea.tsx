@@ -171,8 +171,7 @@ export default function ChatArea({
 
       if (!actualChatId) return
 
-      const message = await sendMessage(actualChatId, newMessage.trim())
-      setMessages(prev => [...prev, message])
+      await sendMessage(actualChatId, newMessage.trim()) //newly sent message will be displayed anyway due to SSE
       setNewMessage('')
     } catch (error) {
       setError('Failed to send message')
@@ -291,7 +290,9 @@ export default function ChatArea({
               className="mt-4 bg-muted/50"
             />
           )}
-          {messages.map((message) => (
+          {[...messages]
+            .sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime())
+            .map((message) => (
             <ChatMessage
               key={message.id}
               message={message}
